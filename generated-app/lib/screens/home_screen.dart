@@ -55,20 +55,31 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (action.startsWith('save_form:')) {
       // Collect data
       final data = _controllers.map((key, controller) => MapEntry(key, controller.text));
-      // Show confirmation
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Form Submitted'),
-          content: Text('Data: $data'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      
+      setState(() => _loading = true);
+      try {
+        await Supabase.instance.client.from('registrations').insert({
+          'app_name': 'Smart Registration Helper',
+          'data': data,
+        });
+
+        if (mounted) {
+            showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                title: const Text('Success'),
+                content: const Text('Registration Submitted!'),
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+                ),
+            );
+        }
+      } catch (e) {
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
     } else if (action.startsWith('ai:')) {
        setState(() => _loading = true);
        final type = action.split(':')[1].split('_')[1]; // e.g. generate_announcement -> announcement

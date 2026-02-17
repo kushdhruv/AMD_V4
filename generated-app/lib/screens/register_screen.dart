@@ -26,7 +26,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _controllers['college'] = TextEditingController();
     _controllers['dept'] = TextEditingController();
     _controllers['team_name'] = TextEditingController();
-    _controllers['diet'] = TextEditingController();
+    _controllers['new_1771312060025'] = TextEditingController();
+    _controllers['new_1771312106859'] = TextEditingController();
   }
 
   @override
@@ -61,20 +62,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else if (action.startsWith('save_form:')) {
       // Collect data
       final data = _controllers.map((key, controller) => MapEntry(key, controller.text));
-      // Show confirmation
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Form Submitted'),
-          content: Text('Data: $data'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
+      
+      setState(() => _loading = true);
+      try {
+        await Supabase.instance.client.from('registrations').insert({
+          'app_name': 'Smart Registration Helper',
+          'data': data,
+        });
+
+        if (mounted) {
+            showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                title: const Text('Success'),
+                content: const Text('Registration Submitted!'),
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+                ),
+            );
+        }
+      } catch (e) {
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        }
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
     } else if (action.startsWith('ai:')) {
        setState(() => _loading = true);
        final type = action.split(':')[1].split('_')[1]; // e.g. generate_announcement -> announcement
@@ -207,10 +219,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         maxLines: 1,
       ),SizedBox(height: 16),
               TextField(
-        controller: _controllers['diet'],
+        controller: _controllers['new_1771312060025'],
         decoration: InputDecoration(
-            labelText: 'Dietary Preferences',
-            hintText: 'Veg, Non-Veg, etc.',
+            labelText: 'team size',
+            hintText: 'number of members',
+            filled: true,
+            fillColor: AppTheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        obscureText: false,
+        maxLines: 1,
+      ),SizedBox(height: 16),
+              TextField(
+        controller: _controllers['new_1771312106859'],
+        decoration: InputDecoration(
+            labelText: 'Event name',
+            hintText: 'dance , singing etc...',
             filled: true,
             fillColor: AppTheme.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

@@ -1,11 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
 
-void main() {
+
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  await Supabase.initialize(
+    url: 'undefined',
+    anonKey: 'undefined',
+  );
+
   runApp(const MyApp());
 }
 

@@ -26,5 +26,17 @@ class AppTheme {
         foregroundColor: text,
         elevation: 0,
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: primary,
+      contentTextStyle: TextStyle(color: Colors.white),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    dialogTheme: DialogTheme(
+      backgroundColor: surface, // Soothing background
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titleTextStyle: TextStyle(color: text, fontSize: 20, fontWeight: FontWeight.bold),
+      contentTextStyle: TextStyle(color: text.withOpacity(0.8), fontSize: 16),
+    ),
   );
 }
