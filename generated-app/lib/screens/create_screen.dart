@@ -5,14 +5,14 @@ import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class CreateScreen extends StatefulWidget {
+  const CreateScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<CreateScreen> createState() => _CreateScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _CreateScreenState extends State<CreateScreen> {
   final Map<String, TextEditingController> _controllers = {};
   bool _loading = false;
 
@@ -20,13 +20,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     // Initialize controllers for text fields
-    _controllers['name'] = TextEditingController();
-    _controllers['email'] = TextEditingController();
-    _controllers['phone'] = TextEditingController();
-    _controllers['college'] = TextEditingController();
-    _controllers['dept'] = TextEditingController();
-    _controllers['team_name'] = TextEditingController();
-    _controllers['diet'] = TextEditingController();
+    _controllers['event_name'] = TextEditingController();
+    _controllers['date_loc'] = TextEditingController();
+    _controllers['highlights'] = TextEditingController();
+    _controllers['output'] = TextEditingController();
   }
 
   @override
@@ -119,75 +116,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Participant Details'), centerTitle: true),
+      appBar: AppBar(title: Text('Hype Builder'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-        controller: _controllers['name'],
-        decoration: InputDecoration(
-            labelText: 'Full Name',
-            hintText: 'John Doe',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              TextField(
-        controller: _controllers['email'],
-        decoration: InputDecoration(
-            labelText: 'Email',
-            hintText: 'john@example.com',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              TextField(
-        controller: _controllers['phone'],
-        decoration: InputDecoration(
-            labelText: 'Phone Number',
-            hintText: '+1 234...',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              TextField(
-        controller: _controllers['college'],
-        decoration: InputDecoration(
-            labelText: 'College / Organization',
-            hintText: 'University of...',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              TextField(
-        controller: _controllers['dept'],
-        decoration: InputDecoration(
-            labelText: 'Year & Department',
-            hintText: '3rd Year CS',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              const Divider(),SizedBox(height: 12),
               Text(
-        'Additional Info',
+        'Event Details',
         style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -195,10 +131,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),SizedBox(height: 8),
               TextField(
-        controller: _controllers['team_name'],
+        controller: _controllers['event_name'],
         decoration: InputDecoration(
-            labelText: 'Team Name (Optional)',
-            hintText: 'The Hackers',
+            labelText: 'Event Name',
+            hintText: 'TechFest',
             filled: true,
             fillColor: AppTheme.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -207,10 +143,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         maxLines: 1,
       ),SizedBox(height: 16),
               TextField(
-        controller: _controllers['diet'],
+        controller: _controllers['date_loc'],
         decoration: InputDecoration(
-            labelText: 'Dietary Preferences',
-            hintText: 'Veg, Non-Veg, etc.',
+            labelText: 'When & Where',
+            hintText: 'Tomorrow @ 10AM',
             filled: true,
             fillColor: AppTheme.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -218,19 +154,122 @@ class _RegisterScreenState extends State<RegisterScreen> {
         obscureText: false,
         maxLines: 1,
       ),SizedBox(height: 16),
-              SizedBox(
-        width: double.infinity,
+              TextField(
+        controller: _controllers['highlights'],
+        decoration: InputDecoration(
+            labelText: 'Key Highlights',
+            hintText: 'Free T-shirts, Pizza...',
+            filled: true,
+            fillColor: AppTheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        obscureText: false,
+        maxLines: 1,
+      ),SizedBox(height: 16),
+              Text(
+        'Style',
+        style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: null,
+        ),
+      ),SizedBox(height: 8),
+              Row(
+            spacing: 8,
+            children: [
+                Expanded(child: SizedBox(
+        width: null,
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('save_form:registrations'), 
+            onPressed: isAI && _loading ? null : () => _handleAction('set_tone:formal'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Submit Registration'),
+            child: Text('Professional'),
+        ),
+      )),
+Expanded(child: SizedBox(
+        width: null,
+        child: ElevatedButton(
+            onPressed: isAI && _loading ? null : () => _handleAction('set_tone:casual'), 
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Hype / Casual'),
+        ),
+      ))
+            ],
+        ),SizedBox(height: 12),
+              SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+            onPressed: isAI && _loading ? null : () => _handleAction('ai:generate_announcement'), 
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : Text('✨ Generate with AI'),
         ),
       ),SizedBox(height: 12),
+              const Divider(),SizedBox(height: 12),
+              Text(
+        'Preview',
+        style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: null,
+        ),
+      ),SizedBox(height: 8),
+              TextField(
+        controller: _controllers['output'],
+        decoration: InputDecoration(
+            labelText: 'Generated Text',
+            hintText: 'Waiting for AI...',
+            filled: true,
+            fillColor: AppTheme.surface,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        obscureText: false,
+        maxLines: 5,
+      ),SizedBox(height: 16),
+              Row(
+            spacing: 8,
+            children: [
+                Expanded(child: SizedBox(
+        width: null,
+        child: ElevatedButton(
+            onPressed: isAI && _loading ? null : () => _handleAction('copy:text'), 
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Copy Text'),
+        ),
+      )),
+Expanded(child: SizedBox(
+        width: null,
+        child: ElevatedButton(
+            onPressed: isAI && _loading ? null : () => _handleAction('share:content'), 
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Share to Socials'),
+        ),
+      ))
+            ],
+        ),SizedBox(height: 12),
             ],
         ),
       ),
