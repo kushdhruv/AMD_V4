@@ -561,6 +561,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 const generateAdminDashboard = (config) => {
   return `import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});

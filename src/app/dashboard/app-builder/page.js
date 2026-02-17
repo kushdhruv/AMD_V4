@@ -23,6 +23,7 @@ export default function AppBuilderPage() {
   const [activeTab, setActiveTab] = useState("content"); 
   const [buildStatus, setBuildStatus] = useState("idle");
   const [repoInfo, setRepoInfo] = useState(null);
+  const [lastRunId, setLastRunId] = useState(null);
 
   // Enforce Submit Button at bottom
   useEffect(() => {
@@ -168,6 +169,12 @@ export default function AppBuilderPage() {
   };
 
   const handleExport = async () => {
+      if (!config.adminPassword || config.adminPassword.trim().length < 4) {
+          alert("⚠️ Admin Password Required!\n\nPlease set a secure admin password in the 'Theme' tab before exporting.");
+          setActiveTab("theme");
+          return;
+      }
+
       setLoading(true);
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -191,6 +198,13 @@ export default function AppBuilderPage() {
   // Build polling (Mocked API for now since we haven't migrated the API routes yet)
   // Build polling (Trigger GitHub Action)
   const handleCloudBuild = async () => {
+      // 0. Validate Admin Password
+      if (!config.adminPassword || config.adminPassword.trim().length < 4) {
+          alert("⚠️ Admin Password Required!\n\nPlease set a secure admin password in the 'Theme' tab before building.");
+          setActiveTab("theme");
+          return;
+      }
+
       setLoading(true);
       setBuildStatus("building");
       try {
@@ -233,9 +247,8 @@ export default function AppBuilderPage() {
                       clearInterval(pollInterval);
                       if (statusData.conclusion === "success") {
                           setBuildStatus("success");
-                          // 4. Auto Download
-                          window.location.href = `/api/build/download?runId=${runId}`;
-                          alert("Build Success! Downloading APK...");
+                          setLastRunId(runId);
+                          alert("✅ Build Success! Click the Download button.");
                       } else {
                           setBuildStatus("error");
                           alert("Build Failed on GitHub. Check Actions logs.");
@@ -383,8 +396,16 @@ export default function AppBuilderPage() {
                      </div>
                      <div className="mt-4 border-t border-neutral-800 pt-4">
                          <label className="block text-sm text-neutral-400 mb-1">Admin Password</label>
-                         <input type="text" className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-white"
-                            value={config.adminPassword || ''} onChange={(e) => updateConfig("adminPassword", e.target.value)} placeholder="Set a password for admin access" />
+                         <div className="flex gap-2">
+                             <input type="text" className="flex-1 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-white"
+                                value={config.adminPassword || ''} onChange={(e) => updateConfig("adminPassword", e.target.value)} placeholder="Set a password for admin access" />
+                             <button 
+                                onClick={() => config.adminPassword?.length >= 4 ? alert("✅ Admin Password Set!") : alert("⚠️ Password too short (min 4 chars)")}
+                                className="bg-neutral-800 hover:bg-neutral-700 text-white px-3 py-1 rounded-lg text-xs border border-neutral-700 font-bold"
+                             >
+                                 Set
+                             </button>
+                         </div>
                      </div>
                 </div>
             )}
@@ -401,8 +422,17 @@ export default function AppBuilderPage() {
                         disabled={loading || buildStatus === 'building'}
                         className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                         <Smartphone size={16} /> Build & Auto-Download APK
+                         {buildStatus === 'building' ? <><div className="animate-spin rounded-full h-4 w-4 border-2 border-white/20 border-t-white"/> Building...</> : <><Smartphone size={16} /> Build APK</>}
                     </button>
+
+                    {buildStatus === 'success' && lastRunId && (
+                        <a 
+                            href={`/api/build/download?runId=${lastRunId}`}
+                            className="w-full py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition flex items-center justify-center gap-2 text-sm mt-2"
+                        >
+                            <Download size={16} /> Download APK
+                        </a>
+                    )}
                     <p className="text-xs text-center text-neutral-500 mt-4">Cloud build requires backend setup. Use Local Export for now.</p>
                 </div>
             )}
