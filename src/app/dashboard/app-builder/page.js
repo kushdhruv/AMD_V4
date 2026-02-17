@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -12,13 +11,44 @@ import { clsx } from "clsx";
 import { deductCredits, PRICING, getUserEconomy } from "@/lib/economy";
 import { supabase } from "@/lib/supabase/client";
 
+
+
 export default function AppBuilderPage() {
+  // ... existing state ...
+  
+
   const [selectedTemplate, setSelectedTemplate] = useState("announcement"); 
   const [config, setConfig] = useState(JSON.parse(JSON.stringify(APP_TEMPLATES["announcement"])));
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("content"); 
   const [buildStatus, setBuildStatus] = useState("idle");
   const [repoInfo, setRepoInfo] = useState(null);
+
+  // Enforce Submit Button at bottom
+  useEffect(() => {
+    let hasChanges = false;
+    const newScreens = config.screens.map(screen => {
+        const comps = [...screen.components];
+        const submitBtnIndex = comps.findIndex(c => 
+            c.type === 'button' && 
+            (c.props.action?.includes('save') || c.props.text?.toLowerCase().includes('submit'))
+        );
+        
+        // If button exists and is NOT the last item
+        if (submitBtnIndex !== -1 && submitBtnIndex !== comps.length - 1) {
+            const [submitBtn] = comps.splice(submitBtnIndex, 1);
+            comps.push(submitBtn);
+            hasChanges = true;
+            return { ...screen, components: comps };
+        }
+        return screen;
+    });
+
+    if (hasChanges) {
+        setConfig(prev => ({ ...prev, screens: newScreens }));
+    }
+  }, [config.screens]);
+
 
   const handleTemplateChange = (key) => {
     setSelectedTemplate(key);
@@ -82,15 +112,34 @@ export default function AppBuilderPage() {
       if(type === 'text') newComp.props = { text: "New Text Block", fontSize: 16 };
       if(type === 'image') newComp.props = { url: "https://via.placeholder.com/300", height: 200 };
       if(type === 'divider') newComp.props = {};
-
+      // Default Button
+      if(type === 'button') newComp.props = { text: "Submit", action: "save_form", backgroundColor: "#FF5722", textColor: "#FFFFFF" };
+      
       setConfig(prev => {
           return {
               ...prev,
               screens: prev.screens.map((screen, idx) => {
                   if (idx === screenIndex) {
+                      const comps = [...screen.components];
+                      
+                      // Find Submit Button (Action or Text check)
+                      const submitBtnIndex = comps.findIndex(c => 
+                        c.type === 'button' && 
+                        (c.props.action?.includes('save') || c.props.text?.toLowerCase().includes('submit'))
+                      );
+
+                      if (submitBtnIndex !== -1) {
+                          // Remove button, add new comp, add button back at end
+                          const [submitBtn] = comps.splice(submitBtnIndex, 1);
+                          comps.push(newComp);
+                          comps.push(submitBtn);
+                      } else {
+                          comps.push(newComp);
+                      }
+
                       return {
                           ...screen,
-                          components: [...screen.components, newComp]
+                          components: comps
                       };
                   }
                   return screen;
@@ -253,11 +302,11 @@ export default function AppBuilderPage() {
                             
                             <div className="p-3 space-y-4">
                                 {screen.components.map((comp, cIdx) => (
-                                    <div key={cIdx} className="relative pl-3 border-l-2 border-neutral-800 hover:border-primary/50 transition group">
+                                    <div key={comp.id || cIdx} className="relative pl-3 border-l-2 border-neutral-800 hover:border-primary/50 transition group">
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="text-xs text-primary/80 flex items-center gap-1">
                                                 {comp.type === 'hero' || comp.type === 'image' ? <ImageIcon size={12}/> : 
-                                                 comp.type === 'text' ? <Type size={12}/> : <Box size={12}/>}
+                                                comp.type === 'text' ? <Type size={12}/> : <Box size={12}/>}
                                                 {comp.type}
                                             </div>
                                             <button onClick={() => deleteComponent(sIdx, cIdx)} className="text-neutral-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
@@ -265,13 +314,12 @@ export default function AppBuilderPage() {
                                             </button>
                                         </div>
                                         
-                                        {/* Recursive Children */}
                                         {comp.children ? (
                                             <div className="pl-2 space-y-2">
                                                 {comp.children.map((child, chIdx) => (
                                                     <div key={chIdx} className="bg-neutral-950 p-2 rounded border border-neutral-800 group/child">
                                                         <div className="flex justify-end mb-1">
-                                                             <button onClick={() => deleteComponent(sIdx, chIdx, cIdx)} className="text-neutral-600 hover:text-red-500 opacity-0 group-hover/child:opacity-100 transition">
+                                                            <button onClick={() => deleteComponent(sIdx, chIdx, cIdx)} className="text-neutral-600 hover:text-red-500 opacity-0 group-hover/child:opacity-100 transition">
                                                                 <Trash2 size={10} />
                                                             </button>
                                                         </div>
