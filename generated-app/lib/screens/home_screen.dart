@@ -3,6 +3,7 @@ import '../theme.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
 
 class HomeScreen extends StatefulWidget {
