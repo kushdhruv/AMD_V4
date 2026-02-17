@@ -205,6 +205,11 @@ export default function AppBuilderPage() {
           return;
       }
 
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+          alert("⚠️ Configuration Error: Supabase credentials missing in .env.local!");
+          return;
+      }
+
       setLoading(true);
       setBuildStatus("building");
       try {
