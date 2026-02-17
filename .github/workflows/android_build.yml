@@ -20,9 +20,12 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.16.x'
+          flutter-version: '3.19.x'
           channel: 'stable'
           cache: true
+
+      - run: flutter create . --platforms android
+        working-directory: ./generated-app
 
       - run: flutter pub get
         working-directory: ./generated-app
