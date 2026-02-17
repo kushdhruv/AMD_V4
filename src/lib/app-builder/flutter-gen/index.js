@@ -647,6 +647,7 @@ class AdminDashboardScreen extends StatelessWidget {
 const generateAndroidManifest = (config) => {
   return `<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <application
         android:label="${config.name}"
         android:name="\${applicationName}"
