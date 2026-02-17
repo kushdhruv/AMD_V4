@@ -37,7 +37,7 @@ export function CreditsBadge() {
         <Coins size={14} />
         <span>{credits ?? 0}</span>
       </div>
-      <Link href="/dashboard/marketplace" className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white hover:scale-110 transition-transform shadow-[0_0_10px_rgba(255,106,0,0.4)]">
+      <Link href="/dashboard/pricing" className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white hover:scale-110 transition-transform shadow-[0_0_10px_rgba(255,106,0,0.4)]">
         <Plus size={16} />
       </Link>
     </div>

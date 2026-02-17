@@ -60,3 +60,18 @@ export async function checkAndRefillCredits(userId) {
     if (error) console.error("Refill check failed:", error);
     return data; // true if refilled, false if not
 }
+
+/**
+ * Demo: Add 1000 credits
+ */
+export async function addDemoCredits(userId) {
+    const { data, error } = await supabase.rpc('give_demo_credits', {
+        p_user_id: userId
+    });
+    
+    if (error) {
+        console.error("Demo credits failed:", error);
+        return false;
+    }
+    return true;
+}

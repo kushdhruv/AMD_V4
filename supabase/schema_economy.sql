@@ -49,6 +49,7 @@ BEGIN
 END;
 $$;
 
+
 -- 5. RPC Function to Refill Credits (Monthly)
 CREATE OR REPLACE FUNCTION refill_credits_if_needed(p_user_id UUID)
 RETURNS BOOLEAN
@@ -84,5 +85,26 @@ BEGIN
   ELSE
     RETURN FALSE;
   END IF;
+END;
+$$;
+
+
+-- 6. Demo Credit Function
+CREATE OR REPLACE FUNCTION give_demo_credits(p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- Update user credits
+  UPDATE profiles 
+  SET credits = credits + 1000
+  WHERE id = p_user_id;
+  
+  -- Log Transaction
+  INSERT INTO credit_transactions (user_id, amount, description)
+  VALUES (p_user_id, 1000, 'Demo Credits Grant');
+
+  RETURN TRUE;
 END;
 $$;

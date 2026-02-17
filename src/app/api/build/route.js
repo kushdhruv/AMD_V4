@@ -92,18 +92,27 @@ export async function POST(request) {
                 const repo = match[2];
                 
                 // Wait a moment for GitHub to register the event
-                await new Promise(r => setTimeout(r, 3000));
+                await new Promise(r => setTimeout(r, 5000));
 
                 if (process.env.GITHUB_TOKEN) {
-                    const runsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?branch=build-artifacts&event=push&per_page=1`, {
+                    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?branch=build-artifacts&event=push&per_page=1`;
+                    console.log("Fetching runs from:", apiUrl);
+                    
+                    const runsRes = await fetch(apiUrl, {
                         headers: {
                             'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
                             'Accept': 'application/vnd.github.v3+json'
                         }
                     });
+                    
                     const runsData = await runsRes.json();
-                    if (runsData.workflow_runs && runsData.workflow_runs.length > 0) {
+                    console.log("GitHub Runs Data:", JSON.stringify(runsData));
+
+                    if (runsRes.ok && runsData.workflow_runs && runsData.workflow_runs.length > 0) {
                         runId = runsData.workflow_runs[0].id;
+                    } else {
+                         // Debug: Attach error to response
+                         console.error("No runs found or API error:", runsData);
                     }
                 }
             }
@@ -113,8 +122,9 @@ export async function POST(request) {
 
         return NextResponse.json({ 
             success: true, 
-            message: "Build triggered!", 
-            runId: runId 
+            message: "Build triggered! If tracking fails, check GitHub Actions manually.", 
+            runId: runId,
+            debug: { runId }
         });
 
     } catch (error) {

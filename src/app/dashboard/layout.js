@@ -82,6 +82,8 @@ export default function DashboardLayout({ children }) {
             <div className={`text-xs font-bold text-text-secondary uppercase mt-6 mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Explore</div>
             <SidebarItem icon={ShoppingBag} label="Marketplace" href="/dashboard/marketplace" active={pathname.startsWith('/dashboard/marketplace')} />
             <SidebarItem icon={Zap} label="Pricing" href="/dashboard/pricing" active={pathname.startsWith('/dashboard/pricing')} />
+            <div className="h-4" /> {/* Spacer */}
+            <SidebarItem icon={Settings} label="Settings" href="/dashboard/settings" active={pathname.startsWith('/dashboard/settings')} />
         </div>
 
         {/* User Footer */}
