@@ -460,14 +460,31 @@ class _${className}State extends State<${className}> {
   Widget build(BuildContext context) {
     return Scaffold(
       ${appBarCode}
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ${bodyWidgets}
-            ],
-        ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ${bodyWidgets}
+                ],
+            ),
+          ),
+          if (_loading)
+            const Positioned(
+                top: 16,
+                right: 16,
+                child: Card(
+                    elevation: 4,
+                    shape: CircleBorder(),
+                    child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                ),
+            ),
+        ],
       ),
     );
   }
