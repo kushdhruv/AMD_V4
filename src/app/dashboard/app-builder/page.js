@@ -1,0 +1,380 @@
+
+"use client";
+
+import { useState, useEffect } from "react";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
+import { APP_TEMPLATES } from "@/lib/app-builder/app-templates";
+import Renderer from "@/components/app-builder/renderer";
+import { generateFlutterProject } from "@/lib/app-builder/flutter-gen";
+import { Download, Smartphone, Layout, Palette, Settings, SmartphoneNfc, Edit3, Type, Image as ImageIcon, Box, Trash2, PlusCircle } from "lucide-react";
+import { clsx } from "clsx";
+import { deductCredits, PRICING, getUserEconomy } from "@/lib/economy";
+import { supabase } from "@/lib/supabase/client";
+
+export default function AppBuilderPage() {
+  const [selectedTemplate, setSelectedTemplate] = useState("announcement"); 
+  const [config, setConfig] = useState(JSON.parse(JSON.stringify(APP_TEMPLATES["announcement"])));
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("content"); 
+  const [buildStatus, setBuildStatus] = useState("idle");
+  const [repoInfo, setRepoInfo] = useState(null);
+
+  const handleTemplateChange = (key) => {
+    setSelectedTemplate(key);
+    setConfig(JSON.parse(JSON.stringify(APP_TEMPLATES[key])));
+    setActiveTab("content");
+  };
+
+  const updateConfig = (key, value) => {
+      setConfig(prev => ({ ...prev, [key]: value }));
+  };
+
+  const updateTheme = (key, value) => {
+      setConfig(prev => ({
+          ...prev,
+          theme: { ...prev.theme, [key]: value }
+      }));
+  };
+
+  const updateComponentProp = (screenIndex, compIndex, key, value, parentIndex = null) => {
+      setConfig(prev => {
+          const newScreens = [...prev.screens];
+          const screen = newScreens[screenIndex];
+          
+          if (parentIndex !== null) {
+              screen.components[parentIndex].children[compIndex].props[key] = value;
+          } else {
+              screen.components[compIndex].props[key] = value;
+          }
+          return { ...prev, screens: newScreens };
+      });
+  };
+
+  const deleteComponent = (screenIndex, compIndex, parentIndex = null) => {
+      if(!confirm("Delete this component?")) return;
+      setConfig(prev => {
+          return {
+              ...prev,
+              screens: prev.screens.map((screen, sIdx) => {
+                  if (sIdx !== screenIndex) return screen;
+                  
+                  if (parentIndex !== null) {
+                      const newComps = [...screen.components];
+                      const parent = {...newComps[parentIndex]};
+                      parent.children = parent.children.filter((_, cIdx) => cIdx !== compIndex);
+                      newComps[parentIndex] = parent;
+                      return { ...screen, components: newComps };
+                  } else {
+                      return {
+                          ...screen,
+                          components: screen.components.filter((_, cIdx) => cIdx !== compIndex)
+                      };
+                  }
+              })
+          };
+      });
+  };
+
+  const addComponent = (screenIndex, type) => {
+      const newComp = { type, props: {}, id: `new_${Date.now()}` };
+      if(type === 'text_field') newComp.props = { label: "New Field", hint: "Enter value..." };
+      if(type === 'text') newComp.props = { text: "New Text Block", fontSize: 16 };
+      if(type === 'image') newComp.props = { url: "https://via.placeholder.com/300", height: 200 };
+      if(type === 'divider') newComp.props = {};
+
+      setConfig(prev => {
+          return {
+              ...prev,
+              screens: prev.screens.map((screen, idx) => {
+                  if (idx === screenIndex) {
+                      return {
+                          ...screen,
+                          components: [...screen.components, newComp]
+                      };
+                  }
+                  return screen;
+              })
+          };
+      });
+  };
+
+  const renderPropEditor = (screenIndex, comp, compIndex, parentIndex = null) => {
+      const props = comp.props || {};
+      return Object.entries(props).map(([key, val]) => {
+          if (key === "action" || key === "fullWidth" || key === "centered" || key === "multiline") return null; 
+          
+          return (
+              <div key={key} className="mb-2">
+                  <label className="text-[10px] uppercase text-neutral-500 font-bold mb-1 block">{key}</label>
+                  <input 
+                      type="text"
+                      value={val}
+                      onChange={(e) => updateComponentProp(screenIndex, compIndex, key, e.target.value, parentIndex)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded px-2 py-1 text-xs text-neutral-300 focus:border-primary outline-none"
+                  />
+              </div>
+          );
+      });
+  };
+
+  const handleExport = async () => {
+      setLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if(!user) throw new Error("Please login");
+
+        const hasCredits = await deductCredits(user.id, PRICING.app, `Exported App: ${config.name}`);
+        if(!hasCredits) throw new Error(`Insufficient credits! App export costs ${PRICING.app} credits.`);
+
+        const files = generateFlutterProject(config);
+        const zip = new JSZip();
+        Object.entries(files).forEach(([path, content]) => zip.file(path, content));
+        const blob = await zip.generateAsync({ type: "blob" });
+        saveAs(blob, `${config.name.replace(/\s+/g, '_').toLowerCase()}_flutter.zip`);
+      } catch (e) { alert("Export failed: " + e.message); } finally { setLoading(false); }
+  };
+
+  // Build polling (Mocked API for now since we haven't migrated the API routes yet)
+  // Build polling (Trigger GitHub Action)
+  const handleCloudBuild = async () => {
+      setLoading(true);
+      setBuildStatus("building");
+      try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if(!user) throw new Error("Please login first");
+
+          // 1. Check Credits
+          const hasCredits = await deductCredits(user.id, PRICING.app * 2, `Cloud Build: ${config.name}`);
+          if(!hasCredits) throw new Error(`Insufficient credits! Cloud build costs ${PRICING.app * 2} credits.`);
+
+          // 2. Trigger Build API
+          const res = await fetch('/api/build', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ config })
+          });
+          
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+
+          const runId = data.runId;
+          if (!runId) {
+             alert("Build Triggered, but could not track Run ID. Check GitHub Actions manually.");
+             setBuildStatus("success");
+             return;
+          }
+
+          // 3. Poll for Status
+          setBuildStatus("building");
+          const pollInterval = setInterval(async () => {
+              try {
+                  const statusRes = await fetch(`/api/build/status?runId=${runId}`);
+                  const statusData = await statusRes.json();
+                  
+                  if (statusData.status === "completed") {
+                      clearInterval(pollInterval);
+                      if (statusData.conclusion === "success") {
+                          setBuildStatus("success");
+                          // 4. Auto Download
+                          window.location.href = `/api/build/download?runId=${runId}`;
+                          alert("Build Success! Downloading APK...");
+                      } else {
+                          setBuildStatus("error");
+                          alert("Build Failed on GitHub. Check Actions logs.");
+                      }
+                  } else {
+                      console.log("Build Status:", statusData.status);
+                  }
+              } catch (err) {
+                  console.error("Polling Error:", err);
+                  // Don't stop polling on transient errors
+              }
+          }, 5000); // Check every 5s
+
+      } catch (e) {
+          alert("Build Failed: " + e.message);
+          setBuildStatus("error");
+          setLoading(false);
+      }
+      // Note: We don't set loading(false) immediately if polling, 
+      // but maybe we should let user continue working while it builds?
+      // For now, let's keep loading state until build starts, then just show status.
+      setLoading(false); 
+  };
+
+  return (
+    <div className="flex h-[calc(100vh-64px)] text-neutral-200 font-sans overflow-hidden">
+      
+      {/* Sidebar */}
+      <div className="w-96 border-r border-neutral-800 flex flex-col bg-neutral-900/50">
+        <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
+                <SmartphoneNfc className="text-primary" size={20} />
+                App Forge
+            </h1>
+            <select 
+                value={selectedTemplate} 
+                onChange={(e) => handleTemplateChange(e.target.value)}
+                className="bg-neutral-800 text-xs rounded px-2 py-1 border border-neutral-700 outline-none"
+            >
+                {Object.keys(APP_TEMPLATES).map(key => (
+                    <option key={key} value={key}>{APP_TEMPLATES[key].name}</option>
+                ))}
+            </select>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-neutral-800">
+            <button onClick={() => setActiveTab("content")} className={clsx("flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition", activeTab === "content" ? "border-primary text-primary" : "border-transparent text-neutral-500 hover:text-neutral-300")}>Content</button>
+            <button onClick={() => setActiveTab("theme")} className={clsx("flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition", activeTab === "theme" ? "border-primary text-primary" : "border-transparent text-neutral-500 hover:text-neutral-300")}>Theme</button>
+            <button onClick={() => setActiveTab("export")} className={clsx("flex-1 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition", activeTab === "export" ? "border-primary text-primary" : "border-transparent text-neutral-500 hover:text-neutral-300")}>Export</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-0">
+            
+            {/* TAB: CONTENT EDITOR */}
+            {activeTab === "content" && (
+                <div className="p-4 space-y-6">
+                    {config.screens.map((screen, sIdx) => (
+                        <div key={screen.id} className="border border-neutral-800 rounded-lg overflow-hidden bg-neutral-900">
+                            <div className="bg-neutral-800/50 px-3 py-2 text-xs font-bold uppercase text-neutral-500 flex justify-between">
+                                {screen.name}
+                                <span className="text-[10px] bg-neutral-700 px-1 rounded text-neutral-300">{screen.id}</span>
+                            </div>
+                            
+                            <div className="p-3 space-y-4">
+                                {screen.components.map((comp, cIdx) => (
+                                    <div key={cIdx} className="relative pl-3 border-l-2 border-neutral-800 hover:border-primary/50 transition group">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="text-xs text-primary/80 flex items-center gap-1">
+                                                {comp.type === 'hero' || comp.type === 'image' ? <ImageIcon size={12}/> : 
+                                                 comp.type === 'text' ? <Type size={12}/> : <Box size={12}/>}
+                                                {comp.type}
+                                            </div>
+                                            <button onClick={() => deleteComponent(sIdx, cIdx)} className="text-neutral-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition">
+                                                <Trash2 size={12} />
+                                            </button>
+                                        </div>
+                                        
+                                        {/* Recursive Children */}
+                                        {comp.children ? (
+                                            <div className="pl-2 space-y-2">
+                                                {comp.children.map((child, chIdx) => (
+                                                    <div key={chIdx} className="bg-neutral-950 p-2 rounded border border-neutral-800 group/child">
+                                                        <div className="flex justify-end mb-1">
+                                                             <button onClick={() => deleteComponent(sIdx, chIdx, cIdx)} className="text-neutral-600 hover:text-red-500 opacity-0 group-hover/child:opacity-100 transition">
+                                                                <Trash2 size={10} />
+                                                            </button>
+                                                        </div>
+                                                        {renderPropEditor(sIdx, child, chIdx, cIdx)}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            renderPropEditor(sIdx, comp, cIdx)
+                                        )}
+                                    </div>
+                                ))}
+
+                                {/* Add Component Button */}
+                                <div className="mt-4 pt-4 border-t border-dashed border-neutral-800">
+                                    <div className="text-[10px] text-neutral-500 mb-2 font-bold uppercase text-center">Add Element</div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button onClick={() => addComponent(sIdx, 'text_field')} className="bg-neutral-800 hover:bg-neutral-700 p-2 rounded text-xs text-neutral-300 border border-neutral-700 flex items-center justify-center gap-1">
+                                            <Edit3 size={10} /> Input Field
+                                        </button>
+                                        <button onClick={() => addComponent(sIdx, 'text')} className="bg-neutral-800 hover:bg-neutral-700 p-2 rounded text-xs text-neutral-300 border border-neutral-700 flex items-center justify-center gap-1">
+                                            <Type size={10} /> Text Block
+                                        </button>
+                                        <button onClick={() => addComponent(sIdx, 'image')} className="bg-neutral-800 hover:bg-neutral-700 p-2 rounded text-xs text-neutral-300 border border-neutral-700 flex items-center justify-center gap-1">
+                                            <ImageIcon size={10} /> Image
+                                        </button>
+                                        <button onClick={() => addComponent(sIdx, 'divider')} className="bg-neutral-800 hover:bg-neutral-700 p-2 rounded text-xs text-neutral-300 border border-neutral-700 flex items-center justify-center gap-1">
+                                            <Box size={10} /> Separator
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* TAB: THEME EDITOR */}
+            {activeTab === "theme" && (
+                <div className="p-6 space-y-4">
+                     <div>
+                         <label className="block text-sm text-neutral-400 mb-1">App Name</label>
+                         <input type="text" className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                            value={config.name} onChange={(e) => updateConfig("name", e.target.value)} />
+                     </div>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div>
+                             <label className="block text-sm text-neutral-400 mb-1">Primary</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="color" className="w-8 h-8 rounded cursor-pointer bg-transparent border-none"
+                                    value={config.theme.primary_color} onChange={(e) => updateTheme("primary_color", e.target.value)} />
+                             </div>
+                        </div>
+                        <div>
+                             <label className="block text-sm text-neutral-400 mb-1">Secondary</label>
+                             <div className="flex items-center gap-2">
+                                 <input type="color" className="w-8 h-8 rounded cursor-pointer bg-transparent border-none"
+                                    value={config.theme.secondary_color} onChange={(e) => updateTheme("secondary_color", e.target.value)} />
+                             </div>
+                        </div>
+                     </div>
+                </div>
+            )}
+
+            {/* TAB: EXPORT */}
+            {activeTab === "export" && (
+                <div className="p-6 space-y-4">
+                    <button onClick={handleExport} disabled={loading} className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-neutral-200 transition flex items-center justify-center gap-2 text-sm">
+                        {loading ? "..." : <><Download size={16} /> Download Code (ZIP)</>}
+                    </button>
+                    
+                    <button 
+                        onClick={handleCloudBuild}
+                        disabled={loading || buildStatus === 'building'}
+                        className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-orange-600 transition flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                         <Smartphone size={16} /> Build & Auto-Download APK
+                    </button>
+                    <p className="text-xs text-center text-neutral-500 mt-4">Cloud build requires backend setup. Use Local Export for now.</p>
+                </div>
+            )}
+
+        </div>
+      </div>
+
+      {/* Main Area: Preview */}
+      <div className="flex-1 bg-black/40 flex flex-col items-center justify-center p-8 relative">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-black to-black pointer-events-none" />
+          
+          <div className="mb-6 flex flex-col items-center">
+              <span className="bg-neutral-800/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium text-neutral-400 flex items-center gap-2 border border-neutral-700">
+                  <Smartphone size={14} /> Interactive Preview
+              </span>
+          </div>
+
+          <div className="w-[375px] h-[812px] bg-black rounded-[3rem] border-8 border-neutral-800 shadow-2xl relative overflow-hidden ring-1 ring-white/10">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-neutral-800 rounded-b-3xl z-20" />
+              <div className="h-12 w-full bg-white flex items-center justify-between px-6 pt-2 text-[10px] font-bold z-10 relative">
+                  <span>9:41</span>
+                  <div className="flex gap-1">
+                      <div className="w-4 h-2 bg-black rounded-sm" />
+                      <div className="w-4 h-2 bg-black rounded-sm" />
+                  </div>
+              </div>
+              <div className="h-[calc(100%-48px)] bg-white w-full overflow-hidden">
+                  <Renderer initialConfig={config} key={selectedTemplate} />
+              </div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-neutral-900/20 rounded-full z-20" />
+          </div>
+      </div>
+
+    </div>
+  );
+}
