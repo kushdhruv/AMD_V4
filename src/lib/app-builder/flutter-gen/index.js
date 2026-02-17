@@ -679,7 +679,7 @@ const generateAndroidManifest = (config) => {
  * MAIN EXPORT
  * Returns a map of filenames to content
  */
-export const generateFlutterProject = (config) => {
+export const generateFlutterProject = (config, supabaseUrl, supabaseKey) => {
   const files = {};
 
   // Root
@@ -691,7 +691,7 @@ export const generateFlutterProject = (config) => {
   files['android_xml_overlay/AndroidManifest.xml'] = generateAndroidManifest(config);
 
   // Lib
-  files['lib/main.dart'] = generateMain(config);
+  files['lib/main.dart'] = generateMain(config, supabaseUrl, supabaseKey);
 // ... existing code ...
   files['lib/theme.dart'] = generateTheme(config);
   
