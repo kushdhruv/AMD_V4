@@ -127,7 +127,11 @@ export default function AppBuilderPage() {
         const hasCredits = await deductCredits(user.id, PRICING.app, `Exported App: ${config.name}`);
         if(!hasCredits) throw new Error(`Insufficient credits! App export costs ${PRICING.app} credits.`);
 
-        const files = generateFlutterProject(config);
+        const files = generateFlutterProject(
+            config, 
+            process.env.NEXT_PUBLIC_SUPABASE_URL, 
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
         const zip = new JSZip();
         Object.entries(files).forEach(([path, content]) => zip.file(path, content));
         const blob = await zip.generateAsync({ type: "blob" });
@@ -152,7 +156,11 @@ export default function AppBuilderPage() {
           const res = await fetch('/api/build', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ config })
+              body: JSON.stringify({ 
+                config,
+                supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+                supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+              })
           });
           
           const data = await res.json();
@@ -324,6 +332,11 @@ export default function AppBuilderPage() {
                                     value={config.theme.secondary_color} onChange={(e) => updateTheme("secondary_color", e.target.value)} />
                              </div>
                         </div>
+                     </div>
+                     <div className="mt-4 border-t border-neutral-800 pt-4">
+                         <label className="block text-sm text-neutral-400 mb-1">Admin Password</label>
+                         <input type="text" className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2 text-sm focus:border-primary outline-none text-white"
+                            value={config.adminPassword || ''} onChange={(e) => updateConfig("adminPassword", e.target.value)} placeholder="Set a password for admin access" />
                      </div>
                 </div>
             )}

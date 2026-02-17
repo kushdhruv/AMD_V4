@@ -23,14 +23,14 @@ function runCommand(cmd, cwd) {
 
 export async function POST(request) {
     try {
-        const { config } = await request.json();
+        const { config, supabaseUrl, supabaseKey } = await request.json();
         
-        if (!config) {
-            return NextResponse.json({ error: "Missing config" }, { status: 400 });
+        if (!config || !config.name) {
+            return NextResponse.json({ error: "Invalid config" }, { status: 400 });
         }
 
         console.log("Generating Flutter Project for:", config.name);
-        const files = generateFlutterProject(config);
+        const files = generateFlutterProject(config, supabaseUrl, supabaseKey);
 
         // 1. Write files to generated-app folder
         if (fs.existsSync(GENERATED_DIR)) {

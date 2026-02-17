@@ -108,3 +108,17 @@ BEGIN
   RETURN TRUE;
 END;
 $$;
+
+-- 7. Registrations Table for Generated Apps
+CREATE TABLE IF NOT EXISTS public.registrations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  app_name TEXT,
+  data JSONB
+);
+
+-- Allow public access for now (since apps are distributed APKs without user auth)
+ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable insert for all users" ON public.registrations FOR INSERT WITH CHECK (true);
+CREATE POLICY "Enable select for all users" ON public.registrations FOR SELECT USING (true);
