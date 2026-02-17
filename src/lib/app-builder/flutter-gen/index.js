@@ -179,7 +179,7 @@ const renderComponent = (comp) => {
       return `SizedBox(
         width: ${p.fullWidth ? 'double.infinity' : 'null'},
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('${p.action || ""}'), 
+            onPressed: ${isAI} && _loading ? null : () => _handleAction('${p.action || ""}'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -304,7 +304,7 @@ class _${className}State extends State<${className}> {
     super.dispose();
   }
 
-  void _handleAction(String action) {
+  Future<void> _handleAction(String action) async {
     if (action.startsWith('navigate:')) {
       // Navigate to route
       final target = action.split(':')[1];
