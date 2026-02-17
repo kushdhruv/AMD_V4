@@ -126,12 +126,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.network(
             'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1000&q=80',
@@ -178,8 +180,23 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text('Register Now'),
         ),
       ),SizedBox(height: 12),
-            ],
-        ),
+                ],
+            ),
+          ),
+          if (_loading)
+            const Positioned(
+                top: 16,
+                right: 16,
+                child: Card(
+                    elevation: 4,
+                    shape: CircleBorder(),
+                    child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                ),
+            ),
+        ],
       ),
     );
   }

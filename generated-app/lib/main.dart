@@ -5,8 +5,8 @@ import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/dashboard_screen.dart';
-
-
+import 'screens/admin_login_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +33,8 @@ class MyApp extends StatelessWidget {
         '/home': (context) => const HomeScreen(),
         '/register': (context) => const RegisterScreen(),
         '/dashboard': (context) => const DashboardScreen(),
+        '/admin_login': (context) => const AdminLoginScreen(),
+        '/admin_dashboard': (context) => const AdminDashboardScreen(),
       },
     );
   }

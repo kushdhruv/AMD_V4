@@ -126,12 +126,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Live Stats'), centerTitle: true),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Unknown: grid
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Unknown: grid
               SizedBox(
         width: double.infinity,
         child: ElevatedButton(
@@ -158,8 +160,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Text('Download CSV'),
         ),
       ),SizedBox(height: 12),
-            ],
-        ),
+                ],
+            ),
+          ),
+          if (_loading)
+            const Positioned(
+                top: 16,
+                right: 16,
+                child: Card(
+                    elevation: 4,
+                    shape: CircleBorder(),
+                    child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                ),
+            ),
+        ],
       ),
     );
   }

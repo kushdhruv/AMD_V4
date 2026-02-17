@@ -27,8 +27,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _controllers['college'] = TextEditingController();
     _controllers['dept'] = TextEditingController();
     _controllers['team_name'] = TextEditingController();
-    _controllers['new_1771312060025'] = TextEditingController();
-    _controllers['new_1771312106859'] = TextEditingController();
+    _controllers['diet'] = TextEditingController();
   }
 
   @override
@@ -133,12 +132,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Participant Details'), centerTitle: true),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
         controller: _controllers['name'],
         decoration: InputDecoration(
             labelText: 'Full Name',
@@ -220,22 +221,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         maxLines: 1,
       ),SizedBox(height: 16),
               TextField(
-        controller: _controllers['new_1771312060025'],
+        controller: _controllers['diet'],
         decoration: InputDecoration(
-            labelText: 'team size',
-            hintText: 'number of members',
-            filled: true,
-            fillColor: AppTheme.surface,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        obscureText: false,
-        maxLines: 1,
-      ),SizedBox(height: 16),
-              TextField(
-        controller: _controllers['new_1771312106859'],
-        decoration: InputDecoration(
-            labelText: 'Event name',
-            hintText: 'dance , singing etc...',
+            labelText: 'Dietary Preferences',
+            hintText: 'Veg, Non-Veg, etc.',
             filled: true,
             fillColor: AppTheme.surface,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -256,8 +245,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Text('Submit Registration'),
         ),
       ),SizedBox(height: 12),
-            ],
-        ),
+                ],
+            ),
+          ),
+          if (_loading)
+            const Positioned(
+                top: 16,
+                right: 16,
+                child: Card(
+                    elevation: 4,
+                    shape: CircleBorder(),
+                    child: Padding(
+                        padding: EdgeInsets.all(8.0),
+                        child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                ),
+            ),
+        ],
       ),
     );
   }
