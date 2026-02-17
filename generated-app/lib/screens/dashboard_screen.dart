@@ -29,7 +29,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  void _handleAction(String action) {
+  Future<void> _handleAction(String action) async {
     if (action.startsWith('navigate:')) {
       // Navigate to route
       final target = action.split(':')[1];
@@ -123,7 +123,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('ai:summarize_registrations'), 
+            onPressed: true && _loading ? null : () => _handleAction('ai:summarize_registrations'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
@@ -136,7 +136,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('download_csv:registrations'), 
+            onPressed: false && _loading ? null : () => _handleAction('download_csv:registrations'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,

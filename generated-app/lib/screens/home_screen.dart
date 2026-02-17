@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  void _handleAction(String action) {
+  Future<void> _handleAction(String action) async {
     if (action.startsWith('navigate:')) {
       // Navigate to route
       final target = action.split(':')[1];
@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('navigate:register'), 
+            onPressed: false && _loading ? null : () => _handleAction('navigate:register'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,

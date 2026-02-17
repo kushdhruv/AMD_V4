@@ -35,7 +35,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleAction(String action) {
+  Future<void> _handleAction(String action) async {
     if (action.startsWith('navigate:')) {
       // Navigate to route
       final target = action.split(':')[1];
@@ -221,7 +221,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SizedBox(
         width: double.infinity,
         child: ElevatedButton(
-            onPressed: isAI && _loading ? null : () => _handleAction('save_form:registrations'), 
+            onPressed: false && _loading ? null : () => _handleAction('save_form:registrations'), 
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.primary,
                 foregroundColor: Colors.white,
