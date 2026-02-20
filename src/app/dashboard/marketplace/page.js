@@ -1,153 +1,440 @@
 
 "use client";
 
-import React, { useState } from 'react';
-import { ShoppingBag, Star, Download, Globe, Smartphone, Layout, Zap, Check } from 'lucide-react';
-import { deductCredits } from '@/lib/economy';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
-// import { toast } from 'sonner'; 
+import { 
+  Search, MapPin, DollarSign, Github, Linkedin, Globe,
+  Briefcase, ChevronDown, Users, UserPlus, ExternalLink, Star
+} from 'lucide-react';
 
-// Mock Data with Images
-const MARKETPLACE_ITEMS = [
-    { 
-        id: 'web-1', type: 'Website', title: 'Tech Conference 2024', cost: 20, rating: 4.8, buys: 1200, icon: Globe,
-        author: '@alex_dev', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=alex',
-        images: [
-            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?auto=format&fit=crop&w=800&q=80'
-        ]
-    },
-    { 
-        id: 'web-2', type: 'Website', title: 'Music Festival Pro', cost: 25, rating: 4.9, buys: 850, icon: Globe,
-        author: '@fest_master', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=fest',
-        images: [
-            'https://images.unsplash.com/photo-1459749411177-7129984dddd3?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1470229722913-7c0d2dbbafd3?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1533174072545-e8d4aa97d890?auto=format&fit=crop&w=800&q=80'
-        ]
-    },
-    { 
-        id: 'app-1', type: 'App', title: 'Club Community App', cost: 40, rating: 4.7, buys: 500, icon: Smartphone,
-        author: '@club_ui', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=club',
-        images: [
-            'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1555421689-d68471e189f2?auto=format&fit=crop&w=800&q=80'
-        ]
-    },
-    { 
-        id: 'asset-1', type: 'Asset', title: 'Cyberpunk Poster Pack', cost: 5, rating: 5.0, buys: 2000, icon: Layout,
-        author: '@neon_art', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=neon',
-        images: [
-            'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1535905557558-afc4877a26fc?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80'
-        ]
-    },
-    { 
-        id: 'vid-1', type: 'Video', title: 'Hype Reel Template', cost: 15, rating: 4.6, buys: 300, icon: Zap,
-        author: '@video_wiz', authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=video',
-        images: [
-            'https://images.unsplash.com/photo-1574717432707-c6780568150a?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=800&q=80'
-        ]
-    },
+const SKILL_OPTIONS = [
+  "JavaScript", "Python", "React", "Node.js", "TypeScript",
+  "FastAPI", "Machine Learning", "UI/UX", "DevOps", "Mobile Dev",
+  "Next.js", "Flutter", "Rust", "Go", "AWS"
 ];
 
-export default function MarketplacePage() {
-    const [purchasing, setPurchasing] = useState(null);
+// ═══════════════════════════════════════════════
+// Demo / fallback data so the marketplace looks
+// alive even before real users sign up
+// ═══════════════════════════════════════════════
+const DEMO_FREELANCERS = [
+  {
+    id: "demo-1",
+    full_name: "Ananya Sharma",
+    bio: "Full-stack developer specializing in React, Next.js and Node.js. I build performant web apps with stunning UIs. 4+ years shipping production code for startups.",
+    skills: "React, Next.js, Node.js, TypeScript, Tailwind CSS",
+    profile_picture_url: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80",
+    availability: "actively_looking",
+    location: "Bangalore, India",
+    hourly_rate: "$40-60/hr",
+    github_url: "https://github.com",
+    linkedin_url: "https://linkedin.com",
+    portfolio_url: "https://example.com",
+    contact_email: "ananya@demo.com",
+    is_demo: true,
+    portfolios: [
+      {
+        id: "dp-1",
+        title: "SaaS Analytics Dashboard",
+        description: "Real-time analytics dashboard with interactive charts, dark mode, and team collaboration features.",
+        thumbnail_url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "React, D3.js, Node.js, PostgreSQL",
+        link: "#",
+      },
+      {
+        id: "dp-2",
+        title: "E-Commerce Mobile App",
+        description: "Full-featured shopping app with AR try-on, wishlist, and payment integration.",
+        thumbnail_url: "https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "React Native, Stripe, Firebase",
+        link: "#",
+      },
+    ],
+  },
+  {
+    id: "demo-2",
+    full_name: "Marcus Chen",
+    bio: "ML engineer & data scientist. I turn messy data into actionable insights and deploy production ML pipelines. Published researcher in NLP.",
+    skills: "Python, Machine Learning, TensorFlow, FastAPI, AWS",
+    profile_picture_url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+    availability: "actively_looking",
+    location: "San Francisco, CA",
+    hourly_rate: "$80-120/hr",
+    github_url: "https://github.com",
+    linkedin_url: "https://linkedin.com",
+    contact_email: "marcus@demo.com",
+    is_demo: true,
+    portfolios: [
+      {
+        id: "dp-3",
+        title: "AI Content Moderation System",
+        description: "Automated content moderation pipeline processing 10K+ images/day with 99.2% accuracy.",
+        thumbnail_url: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Python, PyTorch, FastAPI, Redis",
+        link: "#",
+      },
+      {
+        id: "dp-4",
+        title: "Stock Prediction Dashboard",
+        description: "LSTM-based stock price predictions with interactive backtesting and portfolio optimization.",
+        thumbnail_url: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Python, TensorFlow, Plotly, AWS",
+        link: "#",
+      },
+      {
+        id: "dp-5",
+        title: "NLP Chatbot Framework",
+        description: "Open-source conversational AI framework with multi-language support and custom fine-tuning.",
+        thumbnail_url: "https://images.unsplash.com/photo-1531746790095-e0905944b8fd?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Python, Transformers, Docker",
+        link: "#",
+      },
+    ],
+  },
+  {
+    id: "demo-3",
+    full_name: "Priya Desai",
+    bio: "UI/UX designer who codes. I create pixel-perfect interfaces and design systems. Previously at a Y-Combinator startup.",
+    skills: "UI/UX, Figma, React, Tailwind CSS, Framer Motion",
+    profile_picture_url: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80",
+    availability: "actively_looking",
+    location: "Mumbai, India",
+    hourly_rate: "$35-55/hr",
+    github_url: "https://github.com",
+    portfolio_url: "https://example.com",
+    contact_email: "priya@demo.com",
+    is_demo: true,
+    portfolios: [
+      {
+        id: "dp-6",
+        title: "Fintech Design System",
+        description: "Complete design system with 80+ components, accessibility-first approach, dark/light themes.",
+        thumbnail_url: "https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Figma, React, Storybook",
+        link: "#",
+      },
+      {
+        id: "dp-7",
+        title: "Travel Booking Platform",
+        description: "End-to-end travel booking experience with immersive destination pages and seamless checkout.",
+        thumbnail_url: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Next.js, Tailwind CSS, Framer Motion",
+        link: "#",
+      },
+    ],
+  },
+  {
+    id: "demo-4",
+    full_name: "Jake Morrison",
+    bio: "DevOps & Cloud architect. I automate infrastructure, optimize CI/CD pipelines, and make deployments boring (in a good way).",
+    skills: "AWS, Docker, Kubernetes, Terraform, Go, CI/CD",
+    profile_picture_url: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80",
+    availability: "taking_break",
+    location: "Austin, TX",
+    hourly_rate: "$90-130/hr",
+    github_url: "https://github.com",
+    linkedin_url: "https://linkedin.com",
+    contact_email: "jake@demo.com",
+    is_demo: true,
+    portfolios: [
+      {
+        id: "dp-8",
+        title: "Multi-Cloud Infrastructure",
+        description: "Zero-downtime multi-cloud deployment across AWS and GCP with automated failover.",
+        thumbnail_url: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+        tech_stack: "Terraform, Kubernetes, AWS, GCP",
+        link: "#",
+      },
+    ],
+  },
+];
 
-    const handlePurchase = async (item) => {
-        setPurchasing(item.id);
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-            alert("Please login first");
-            setPurchasing(null);
-            return;
-        }
+function getAvatarUrl(url, name) {
+  if (url && url.startsWith("http")) return url;
+  return `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name || "U")}`;
+}
 
-        const success = await deductCredits(user.id, item.cost, `Purchased ${item.title}`);
-        
-        if (success) {
-            alert(`Successfully purchased ${item.title}!`);
-        } else {
-            alert("Insufficient credits! Please upgrade your plan.");
-        }
-        setPurchasing(null);
-    };
+function SkillBadge({ skill }) {
+  return (
+    <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-white/5 border border-white/10 text-text-secondary">
+      {skill}
+    </span>
+  );
+}
 
-    return (
-        <div className="max-w-7xl mx-auto space-y-12 pb-20 p-4 md:p-8">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold mb-2">Marketplace</h1>
-                    <p className="text-text-secondary">Discover premium templates, assets, and tools from the community.</p>
-                </div>
-                <div className="glass-card px-4 py-2 flex items-center gap-2 text-yellow-500">
-                    <Star fill="currentColor" size={16} />
-                    <span className="font-bold text-sm">Community Verified</span>
-                </div>
-            </div>
+// ═══════════════════════════════════════
+// Project card (shown side by side)
+// ═══════════════════════════════════════
+function ProjectCard({ project, freelancer }) {
+  const techStack = (project.tech_stack || "").split(",").map(s => s.trim()).filter(Boolean);
 
-            {/* Masonry Grid */}
-            <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
-                {MARKETPLACE_ITEMS.map((item) => (
-                    <div key={item.id} className="glass-card group break-inside-avoid mb-6 hover:bg-white/5 transition-all overflow-hidden flex flex-col">
-                        
-                        {/* Main Image */}
-                        <div className="relative aspect-[4/3] bg-neutral-800 overflow-hidden group-hover:opacity-90 transition-opacity cursor-pointer">
-                            <img src={item.images[0]} alt={item.title} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
-                            <div className="absolute top-3 left-3 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs font-bold text-white border border-white/10 flex items-center gap-1">
-                                <item.icon size={12} /> {item.type}
-                            </div>
-                        </div>
-
-                        {/* Thumbnails */}
-                        <div className="grid grid-cols-3 gap-1 mt-1 px-1">
-                            {item.images.slice(1, 4).map((img, i) => (
-                                <div key={i} className="aspect-square bg-neutral-800 overflow-hidden rounded-sm cursor-pointer hover:opacity-80">
-                                    <img src={img} alt="preview" className="w-full h-full object-cover" />
-                                </div>
-                            ))}
-                        </div>
-                        
-                        <div className="p-5 flex-1 flex flex-col">
-                            <div className="flex justify-between items-start mb-3">
-                                <h3 className="font-bold text-lg leading-tight">{item.title}</h3>
-                                <div className="flex items-center gap-1 text-xs font-bold text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded shrink-0">
-                                    <Star size={10} fill="currentColor" /> {item.rating}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 mb-4">
-                                <img src={item.authorAvatar} alt={item.author} className="w-6 h-6 rounded-full border border-white/10" />
-                                <span className="text-xs text-text-secondary">{item.author}</span>
-                                <span className="text-xs text-neutral-600">•</span>
-                                <span className="text-xs text-text-secondary">{item.buys} buys</span>
-                            </div>
-
-                            <div className="mt-auto flex items-center justify-between pt-4 border-t border-white/5">
-                                <div className="font-bold text-lg text-primary">
-                                    {item.cost} <span className="text-xs text-text-secondary font-normal">credits</span>
-                                </div>
-                                <button 
-                                    onClick={() => handlePurchase(item)}
-                                    disabled={purchasing === item.id}
-                                    className="px-4 py-2 rounded-lg bg-white text-black text-sm font-bold hover:bg-neutral-200 transition-colors disabled:opacity-50"
-                                >
-                                    {purchasing === item.id ? '...' : 'Get'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
+  return (
+    <div className="glass-card overflow-hidden group flex-shrink-0 w-72 hover:ring-1 hover:ring-primary/30 transition-all">
+      {/* Thumbnail */}
+      {project.thumbnail_url ? (
+        <div className="relative aspect-video overflow-hidden">
+          <img
+            src={project.thumbnail_url}
+            alt={project.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          {project.link && project.link !== "#" && (
+            <a href={project.link} target="_blank" rel="noopener noreferrer"
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur p-1.5 rounded-lg inline-flex">
+              <ExternalLink size={12} className="text-white" />
+            </a>
+          )}
         </div>
-    );
+      ) : (
+        <div className="aspect-video bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center">
+          <Briefcase size={28} className="text-white/10" />
+        </div>
+      )}
+
+      {/* Content */}
+      <div className="p-4 space-y-2">
+        <h3 className="font-bold text-white text-sm leading-snug group-hover:text-blue-400 transition-colors">
+          {project.title}
+        </h3>
+        {project.description && (
+          <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">{project.description}</p>
+        )}
+        {techStack.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {techStack.slice(0, 3).map(t => (
+              <span key={t} className="px-1.5 py-0.5 rounded text-[10px] bg-primary/5 text-primary/80 border border-primary/10">
+                {t}
+              </span>
+            ))}
+            {techStack.length > 3 && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] text-text-secondary">+{techStack.length - 3}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════
+// Per-freelancer section with projects
+// ═══════════════════════════════════════
+function FreelancerSection({ freelancer }) {
+  const skills = (freelancer.skills || "").split(",").map(s => s.trim()).filter(Boolean);
+  const avatar = getAvatarUrl(freelancer.profile_picture_url, freelancer.full_name);
+  const projects = freelancer.portfolios || [];
+  const isAvailable = freelancer.availability === "actively_looking";
+  const profileHref = freelancer.is_demo ? "#" : `/dashboard/marketplace/${freelancer.id}`;
+
+  return (
+    <div className="space-y-4">
+      {/* Freelancer header */}
+      <Link href={profileHref} className="glass-card p-5 flex items-start gap-4 hover:bg-white/5 transition-all group">
+        <img src={avatar} alt={freelancer.full_name}
+          className="w-14 h-14 rounded-xl border border-white/10 object-cover shrink-0" />
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h3 className="font-bold text-lg text-white group-hover:text-blue-400 transition-colors">{freelancer.full_name}</h3>
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              isAvailable ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-green-400' : 'bg-yellow-400'}`} />
+              {isAvailable ? 'Available' : 'On Break'}
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-text-secondary flex-wrap">
+            {freelancer.location && <span className="flex items-center gap-1"><MapPin size={11} /> {freelancer.location}</span>}
+            {freelancer.hourly_rate && <span className="flex items-center gap-1"><DollarSign size={11} /> {freelancer.hourly_rate}</span>}
+            <span className="flex items-center gap-1"><Briefcase size={11} /> {projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+          </div>
+          {freelancer.bio && (
+            <p className="text-xs text-text-secondary line-clamp-1 leading-relaxed">{freelancer.bio}</p>
+          )}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {skills.slice(0, 5).map(s => <SkillBadge key={s} skill={s} />)}
+            {skills.length > 5 && (
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-primary/10 text-primary">+{skills.length - 5}</span>
+            )}
+          </div>
+        </div>
+      </Link>
+
+      {/* Projects row — side by side, horizontally scrollable */}
+      {projects.length > 0 && (
+        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pl-1">
+          {projects.map(p => (
+            <ProjectCard key={p.id} project={p} freelancer={freelancer} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function MarketplacePage() {
+  const [freelancers, setFreelancers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [skillFilter, setSkillFilter] = useState("");
+  const [availabilityFilter, setAvailabilityFilter] = useState("");
+  const [myProfileId, setMyProfileId] = useState(null);
+
+  const loadFreelancers = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from('freelancers')
+      .select('*, portfolios(*)')
+      .order('created_at', { ascending: false });
+
+    if (availabilityFilter) {
+      query = query.eq('availability', availabilityFilter);
+    }
+    if (skillFilter) {
+      query = query.ilike('skills', `%${skillFilter}%`);
+    }
+    if (searchQuery.trim()) {
+      const term = `%${searchQuery.trim()}%`;
+      query = query.or(`full_name.ilike.${term},bio.ilike.${term},skills.ilike.${term}`);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error("Marketplace fetch error:", error);
+      setFreelancers([]);
+    } else {
+      setFreelancers(data || []);
+    }
+    setLoading(false);
+  }, [searchQuery, skillFilter, availabilityFilter]);
+
+  useEffect(() => { loadFreelancers(); }, [loadFreelancers]);
+
+  // Check if user has a profile
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('freelancers').select('id').eq('user_id', user.id).maybeSingle();
+        if (data) setMyProfileId(data.id);
+      }
+    })();
+  }, []);
+
+  // ═══ Merge real DB freelancers with demo data ═══
+  const filteredDemos = DEMO_FREELANCERS.filter(d => {
+    if (availabilityFilter && d.availability !== availabilityFilter) return false;
+    if (skillFilter && !d.skills.toLowerCase().includes(skillFilter.toLowerCase())) return false;
+    if (searchQuery.trim()) {
+      const term = searchQuery.trim().toLowerCase();
+      if (!d.full_name.toLowerCase().includes(term) &&
+          !d.bio.toLowerCase().includes(term) &&
+          !d.skills.toLowerCase().includes(term)) return false;
+    }
+    return true;
+  });
+
+  const allFreelancers = [...freelancers, ...filteredDemos];
+  const totalProjects = allFreelancers.reduce((sum, f) => sum + (f.portfolios?.length ?? 0), 0);
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-8 pb-20 p-4 md:p-8">
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold mb-1">
+            Explore <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">Talent</span>
+          </h1>
+          <p className="text-text-secondary text-sm">Discover skilled freelancers and their best work</p>
+        </div>
+        <Link
+          href="/dashboard/marketplace/my-profile"
+          className="btn-primary text-white flex items-center gap-2 shrink-0"
+        >
+          <UserPlus size={16} />
+          {myProfileId ? 'Edit Your Profile' : 'Join as Freelancer'}
+        </Link>
+      </div>
+
+      {/* Search & Filters */}
+      <div className="glass-card p-4 flex flex-col md:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" size={16} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by name, skills, or bio..."
+            className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-text-secondary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div className="flex gap-3">
+          <div className="relative">
+            <select
+              value={skillFilter}
+              onChange={(e) => setSkillFilter(e.target.value)}
+              className="appearance-none bg-white/5 border border-white/10 rounded-lg px-4 pr-8 py-2.5 text-sm text-white hover:bg-white/10 transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="" className="bg-neutral-900">All Skills</option>
+              {SKILL_OPTIONS.map(s => (
+                <option key={s} value={s} className="bg-neutral-900">{s}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={14} />
+          </div>
+          <div className="relative">
+            <select
+              value={availabilityFilter}
+              onChange={(e) => setAvailabilityFilter(e.target.value)}
+              className="appearance-none bg-white/5 border border-white/10 rounded-lg px-4 pr-8 py-2.5 text-sm text-white hover:bg-white/10 transition cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="" className="bg-neutral-900">All Statuses</option>
+              <option value="actively_looking" className="bg-neutral-900">Actively Looking</option>
+              <option value="taking_break" className="bg-neutral-900">Taking a Break</option>
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none" size={14} />
+          </div>
+        </div>
+      </div>
+
+      {/* Stats bar */}
+      {!loading && (
+        <div className="flex items-center gap-6 text-xs text-text-secondary">
+          <span className="flex items-center gap-1.5"><Users size={12} /> {allFreelancers.length} freelancer{allFreelancers.length !== 1 ? 's' : ''}</span>
+          <span className="flex items-center gap-1.5"><Briefcase size={12} /> {totalProjects} project{totalProjects !== 1 ? 's' : ''}</span>
+        </div>
+      )}
+
+      {/* ═══ Freelancer Sections — projects grouped per creator ═══ */}
+      {loading ? (
+        <div className="space-y-8">
+          {[1,2,3].map(i => (
+            <div key={i} className="space-y-4 animate-pulse">
+              <div className="glass-card h-24 bg-white/[0.02]" />
+              <div className="flex gap-4">
+                <div className="glass-card w-72 h-48 bg-white/[0.02] shrink-0" />
+                <div className="glass-card w-72 h-48 bg-white/[0.02] shrink-0" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : allFreelancers.length > 0 ? (
+        <div className="space-y-10">
+          {allFreelancers.map(f => (
+            <FreelancerSection key={f.id} freelancer={f} />
+          ))}
+        </div>
+      ) : (
+        <div className="glass-card p-16 text-center text-text-secondary">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="font-bold text-white mb-2">No results found</h3>
+          <p className="text-sm">Try adjusting your filters, or <Link href="/dashboard/marketplace/my-profile" className="text-primary hover:underline">be the first to join!</Link></p>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -142,8 +142,8 @@ export const APP_TEMPLATES = {
     ],
   },
   announcement: {
-    name: "Announcement Generator",
-    description: "AI-generated hype posts for social media & email.",
+    name: "Event Announcer",
+    description: "Real-time updates for your attendees. Admin posts, users view.",
     theme: {
       primary_color: "#E11D48",
       secondary_color: "#F43F5E",
@@ -154,32 +154,11 @@ export const APP_TEMPLATES = {
     },
     screens: [
       {
-        id: "create",
-        name: "New Announcement",
+        id: "feed",
+        name: "Latest Updates",
         components: [
-          { type: "app_bar", props: { title: "Hype Builder", centered: true } },
-          
-          { type: "text", props: { text: "Event Details", fontWeight: "bold" } },
-          { type: "text_field", id: "event_name", props: { label: "Event Name", hint: "TechFest" } },
-          { type: "text_field", id: "date_loc", props: { label: "When & Where", hint: "Tomorrow @ 10AM" } },
-          { type: "text_field", id: "highlights", props: { label: "Key Highlights", hint: "Free T-shirts, Pizza..." } },
-          
-          { type: "text", props: { text: "Style", fontWeight: "bold" } },
-          { type: "row", children: [
-              { type: "button", props: { text: "Professional", action: "set_tone:formal", size: "sm" } },
-              { type: "button", props: { text: "Hype / Casual", action: "set_tone:casual", size: "sm" } },
-          ]},
-          
-          { type: "button", props: { text: "✨ Generate with AI", action: "ai:generate_announcement", fullWidth: true } },
-          
-          { type: "divider" },
-          { type: "text", props: { text: "Preview", fontWeight: "bold" } },
-          { type: "text_field", id: "output", props: { label: "Generated Text", hint: "Waiting for AI...", multiline: true } },
-          
-          { type: "row", children: [
-              { type: "button", props: { text: "Copy Text", action: "copy:text" } },
-              { type: "button", props: { text: "Share to Socials", action: "share:content" } },
-          ]},
+          { type: "app_bar", props: { title: "Announcements", centered: true } },
+          { type: "announcement_feed", props: { emptyText: "Stay tuned for updates!" } }
         ],
       }
     ],

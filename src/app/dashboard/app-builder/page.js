@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { APP_TEMPLATES } from "@/lib/app-builder/app-templates";
 import Renderer from "@/components/app-builder/renderer";
+import AdminPreview from "@/components/app-builder/admin-preview";
 import { generateFlutterProject } from "@/lib/app-builder/flutter-gen";
 import { Download, Smartphone, Layout, Palette, Settings, SmartphoneNfc, Edit3, Type, Image as ImageIcon, Box, Trash2, PlusCircle } from "lucide-react";
 import { clsx } from "clsx";
@@ -24,6 +25,16 @@ export default function AppBuilderPage() {
   const [buildStatus, setBuildStatus] = useState("idle");
   const [repoInfo, setRepoInfo] = useState(null);
   const [lastRunId, setLastRunId] = useState(null);
+  const [viewMode, setViewMode] = useState("dual"); 
+
+  // Enforce View Mode based on Template
+  useEffect(() => {
+      if (selectedTemplate === 'certificate') {
+          setViewMode('single');
+      } else {
+          setViewMode('dual');
+      }
+  }, [selectedTemplate]);
 
   // Enforce Submit Button at bottom
   useEffect(() => {
@@ -446,28 +457,41 @@ export default function AppBuilderPage() {
       </div>
 
       {/* Main Area: Preview */}
-      <div className="flex-1 bg-black/40 flex flex-col items-center justify-center p-8 relative">
+      <div className="flex-1 bg-black/40 flex flex-col items-center justify-center p-8 relative overflow-x-auto">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-black to-black pointer-events-none" />
           
-          <div className="mb-6 flex flex-col items-center">
+          <div className="mb-6 flex flex-col items-center z-10">
               <span className="bg-neutral-800/80 backdrop-blur px-3 py-1 rounded-full text-xs font-medium text-neutral-400 flex items-center gap-2 border border-neutral-700">
-                  <Smartphone size={14} /> Interactive Preview
+                  <Smartphone size={14} /> 
+                  {viewMode === 'dual' ? 'Dual Preview (User + Admin)' : 'App Preview'}
               </span>
           </div>
 
-          <div className="w-[375px] h-[812px] bg-black rounded-[3rem] border-8 border-neutral-800 shadow-2xl relative overflow-hidden ring-1 ring-white/10">
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-neutral-800 rounded-b-3xl z-20" />
-              <div className="h-12 w-full bg-white flex items-center justify-between px-6 pt-2 text-[10px] font-bold z-10 relative">
-                  <span>9:41</span>
-                  <div className="flex gap-1">
-                      <div className="w-4 h-2 bg-black rounded-sm" />
-                      <div className="w-4 h-2 bg-black rounded-sm" />
-                  </div>
-              </div>
-              <div className="h-[calc(100%-48px)] bg-white w-full overflow-hidden">
-                  <Renderer initialConfig={config} key={selectedTemplate} />
-              </div>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-neutral-900/20 rounded-full z-20" />
+          <div className="flex gap-8 items-start">
+             {/* USER APP PREVIEW */}
+             <div className="flex flex-col items-center gap-2">
+                 {viewMode === "dual" && <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">User App</span>}
+                 <div className="w-[375px] h-[812px] bg-black rounded-[3rem] border-8 border-neutral-800 shadow-2xl relative overflow-hidden ring-1 ring-white/10 shrink-0">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-neutral-800 rounded-b-3xl z-20" />
+                    <div className="h-full w-full bg-white overflow-hidden relative pt-8">
+                         {/* Pass Supabase Client */}
+                         <Renderer initialConfig={config} supabaseClient={supabase} key={selectedTemplate} />
+                    </div>
+                 </div>
+             </div>
+
+             {/* ADMIN APP PREVIEW (Dual Mode Only) */}
+             {viewMode === "dual" && (
+                 <div className="flex flex-col items-center gap-2">
+                     <span className="text-xs font-bold text-primary uppercase tracking-wider">Admin Dashboard</span>
+                     <div className="w-[375px] h-[812px] bg-black rounded-[3rem] border-8 border-neutral-800 shadow-2xl relative overflow-hidden ring-1 ring-primary/20 shrink-0">
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-40 h-7 bg-neutral-800 rounded-b-3xl z-20" />
+                        <div className="h-full w-full bg-white overflow-hidden relative pt-8">
+                             <AdminPreview config={config} supabaseClient={supabase} />
+                        </div>
+                     </div>
+                 </div>
+             )}
           </div>
       </div>
 

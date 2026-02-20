@@ -72,17 +72,17 @@ export default function DashboardLayout({ children }) {
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
             <div className={`text-xs font-bold text-text-secondary uppercase mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Main</div>
             <SidebarItem icon={Home} label="Home" href="/dashboard" active={pathname === '/dashboard'} />
-            <SidebarItem icon={PlusCircle} label="Generators" href="/dashboard/generators" active={pathname.startsWith('/dashboard/generators')} />
             
             <div className={`text-xs font-bold text-text-secondary uppercase mt-6 mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Builders</div>
             <SidebarItem icon={Globe} label="EventForge (Web)" href="/dashboard/website-builder" active={pathname.startsWith('/dashboard/website-builder')} />
             <SidebarItem icon={Smartphone} label="AppForge (App)" href="/dashboard/app-builder" active={pathname.startsWith('/dashboard/app-builder')} />
-            <SidebarItem icon={Layers} label="Utility Apps" href="/dashboard/utility-apps" active={pathname.startsWith('/dashboard/utility-apps')} />
+            <SidebarItem icon={PlusCircle} label="Generators" href="/dashboard/generators" active={pathname.startsWith('/dashboard/generators')} />
             
             <div className={`text-xs font-bold text-text-secondary uppercase mt-6 mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Explore</div>
             <SidebarItem icon={ShoppingBag} label="Marketplace" href="/dashboard/marketplace" active={pathname.startsWith('/dashboard/marketplace')} />
-            <SidebarItem icon={Zap} label="Pricing" href="/dashboard/pricing" active={pathname.startsWith('/dashboard/pricing')} />
+            
             <div className="h-4" /> {/* Spacer */}
+            <SidebarItem icon={Zap} label="Pricing" href="/dashboard/pricing" active={pathname.startsWith('/dashboard/pricing')} />
             <SidebarItem icon={Settings} label="Settings" href="/dashboard/settings" active={pathname.startsWith('/dashboard/settings')} />
         </div>
 

@@ -127,8 +127,132 @@ const RenderChildren = (children, theme, actions, formData, handleInputChange) =
     ));
 };
 
-// Component Dispatcher to handle recursion
-const ComponentDispatch = ({ comp, theme, actions, formData, handleInputChange }) => {
+const RatingInput = ({ id, props, theme, value, onChange }) => {
+  const max = props.max || 5;
+  const current = value || 0;
+  return (
+    <div className="mb-4">
+      {props.label && <label className="block text-sm font-medium mb-1" style={{color: theme.text}}>{props.label}</label>}
+      <div className="flex gap-1">
+        {[...Array(max)].map((_, i) => (
+          <button 
+             key={i}
+             onClick={() => onChange(id, i + 1)}
+             className="p-1 transition active:scale-95 hover:scale-110"
+          >
+             <Star 
+                size={28} 
+                fill={i < current ? theme.primary : "transparent"} 
+                color={i < current ? theme.primary : theme.text}
+                strokeWidth={1.5}
+             />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const Toast = ({ message, onClose }) => (
+    <div className="absolute top-4 left-4 right-4 bg-black/90 text-white p-4 rounded-xl shadow-2xl z-50 flex items-center justify-between border border-white/20 animate-in fade-in slide-in-from-top-4 duration-300">
+        <div className="flex items-center gap-3">
+            <span className="text-xl">🔔</span>
+            <div className="text-sm">
+                <div className="font-bold opacity-70 uppercase text-[10px]">New Announcement</div>
+                <div>{message}</div>
+            </div>
+        </div>
+        <button onClick={onClose} className="text-white/50 hover:text-white">✕</button>
+    </div>
+);
+
+const AnnouncementFeed = ({ props, theme, config, supabaseClient }) => {
+    const [posts, setPosts] = useState([]);
+    const [toastMsg, setToastMsg] = useState(null);
+    const [lastCheck] = useState(new Date().toISOString());
+    
+    const appName = config?.name;
+    
+    useEffect(() => {
+        // If no client (mock mode), maybe show dummy data?
+        if (!supabaseClient) {
+             if (posts.length === 0) setPosts([{id:1, title: 'Welcome!', message: 'This is a preview of your feed.', created_at: new Date().toISOString()}]);
+             return;
+        }
+
+        if (!appName) {
+            console.warn("AnnouncementFeed: No appName found in config");
+            return;
+        }
+        
+        console.log("AnnouncementFeed: Fetching for", appName);
+
+        // Fetch
+        const fetchPosts = async () => {
+             const { data, error } = await supabaseClient
+                .from('announcements')
+                .select('*')
+                .eq('app_name', appName)
+                .order('created_at', { ascending: false });
+             
+             if (error) console.error("AnnouncementFeed Error:", error);
+             if (data) {
+                 console.log("AnnouncementFeed Data:", data);
+                 setPosts(data);
+             }
+        };
+        fetchPosts();
+
+        // Realtime
+        const channel = supabaseClient
+            .channel(`feed-${appName}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'announcements',
+                filter: `app_name=eq.${appName}` 
+            }, (payload) => {
+                setPosts(prev => [payload.new, ...prev]);
+                // Show Toast if new
+                if (new Date(payload.new.created_at) > new Date(lastCheck)) {
+                    setToastMsg(payload.new.title);
+                    setTimeout(() => setToastMsg(null), 5000); // Auto hide
+                }
+            })
+            .subscribe();
+
+        return () => supabaseClient.removeChannel(channel);
+    }, [supabaseClient, appName]);
+
+    if (posts.length === 0) {
+        return <div className="p-8 text-center opacity-50" style={{color: theme.text}}>{props.emptyText || "No updates."}</div>;
+    }
+
+    return (
+        <div className="pb-4 relative">
+            {toastMsg && <Toast message={toastMsg} onClose={() => setToastMsg(null)} />}
+            
+            {posts.map(post => {
+                if (post.data?.image) console.log("Renderer Post with Image:", post);
+                return (
+                <div key={post.id} className="mb-4 p-4 rounded-xl shadow-sm" style={{backgroundColor: theme.surface}}>
+                    {post.data?.image && (
+                        <img src={post.data.image} alt="update" className="w-full h-40 object-cover rounded-lg mb-3" />
+                    )}
+                    <h3 className="font-bold text-lg mb-2" style={{color: theme.primary}}>{post.title || "NO TITLE"}</h3>
+                    <p style={{color: theme.text}} className="whitespace-pre-wrap">{post.message || "NO MESSAGE"}</p>
+                    <div className="text-xs opacity-50 mt-2 text-right" style={{color: theme.text}}>
+                        {new Date(post.created_at).toLocaleString()}
+                    </div>
+                </div>
+                );
+            })}
+        </div>
+    );
+};
+
+// Component Dispatcher to handle recursion - UPDATED signature to pass config/supabase
+const ComponentDispatch = ({ comp, theme, actions, formData, handleInputChange, config, supabaseClient }) => {
     switch (comp.type) {
         case "app_bar": return null; // Handled separately in Renderer layout
         case "text":
@@ -144,6 +268,10 @@ const ComponentDispatch = ({ comp, theme, actions, formData, handleInputChange }
             );
         case "button":
             return <div className="mb-4"><Button props={comp.props} theme={theme} onAction={actions} /></div>;
+        case "rating":
+            return <RatingInput id={comp.id} props={comp.props} theme={theme} value={formData[comp.id]} onChange={handleInputChange} />;
+        case "announcement_feed":
+            return <AnnouncementFeed props={comp.props} theme={theme} config={config} supabaseClient={supabaseClient} />;
         case "text_field":
             return <TextField id={comp.id} props={comp.props} theme={theme} value={formData[comp.id]} onChange={handleInputChange} />;
         case "image": 
@@ -156,19 +284,19 @@ const ComponentDispatch = ({ comp, theme, actions, formData, handleInputChange }
         case "row":
             return (
                 <div className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar">
-                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange)}
+                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange, config, supabaseClient)}
                 </div>
             );
         case "grid":
              return (
                 <div className="grid gap-3 mb-4" style={{gridTemplateColumns: `repeat(${comp.props.columns || 2}, 1fr)`}}>
-                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange)}
+                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange, config, supabaseClient)}
                 </div>
             );
         case "container":
             return (
                 <div className="rounded-xl overflow-hidden mb-4" style={{padding: comp.props.padding || 16, backgroundColor: comp.props.color || theme.surface}}>
-                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange)}
+                    {RenderChildren(comp.children, theme, actions, formData, handleInputChange, config, supabaseClient)}
                 </div>
             );
             
@@ -179,7 +307,7 @@ const ComponentDispatch = ({ comp, theme, actions, formData, handleInputChange }
 
 // --- Main Renderer ---
 
-export default function Renderer({ initialConfig }) {
+export default function Renderer({ initialConfig, supabaseClient }) {
   const [config, setConfig] = useState(initialConfig);
   const [currentScreenId, setCurrentScreenId] = useState("welcome"); 
   const [history, setHistory] = useState([]);
@@ -189,10 +317,14 @@ export default function Renderer({ initialConfig }) {
       // Logic to find entry screen
       if (initialConfig.screens && initialConfig.screens.length > 0) {
           const first = initialConfig.screens[0].id;
-          // If we haven't set a screen yet or current is invalid
-          if (history.length === 0) {
+          // If we haven't set a screen yet or TEMPLATE CHANGED
+          if (history.length === 0 || initialConfig.name !== config.name) {
+              if (initialConfig.name !== config.name) {
+                   console.log("Renderer: Template switched from", config.name, "to", initialConfig.name);
+              }
               setCurrentScreenId(first);
               setHistory([first]);
+              if (initialConfig.name !== config.name) setFormData({});
           }
       }
       setConfig(initialConfig);
@@ -215,17 +347,34 @@ export default function Renderer({ initialConfig }) {
       }
   };
 
-  const handleAction = (actionStr) => {
+  const handleAction = async (actionStr) => {
       if (!actionStr) return;
       const [type, arg] = actionStr.split(":");
       
       if (type === "navigate") handleNavigate(arg);
       else if (type === "go_back") handleBack();
       else if (type === "save_form") {
-          alert(`Form Saved! (Mock)\nTop-level Fields: ${JSON.stringify(formData)}`);
+          // Real Supabase Submission
+          if (supabaseClient) {
+              const { error } = await supabaseClient.from('registrations').insert({
+                  app_name: config.name,
+                  data: formData
+              });
+              
+              if (error) {
+                  alert(`Error Saving: ${error.message}\n(Check Console)`);
+                  console.error(error);
+              } else {
+                  alert("✅ Form Saved to Supabase!");
+                  // Reset form? Optional.
+                  setFormData({});
+              }
+          } else {
+              alert(`Form Saved! (Mock - Supabase Not Connected)\nFields: ${JSON.stringify(formData)}`);
+          }
       }
       else if (type === "ai") {
-          // Mock AI generation
+          // ... existing AI logic ...
           if (arg === "generate_announcement") {
              setFormData(prev => ({...prev, output: "🔥 TECHFEST 2026 IS HERE! 🔥\n\nJoin us at the Main Auditorium tomorrow @ 10AM.\nFree T-shirts, Pizza, and Coding!\n\n#TechFest #Hackathon"}));
           } else {
@@ -233,7 +382,7 @@ export default function Renderer({ initialConfig }) {
           }
       }
       else if (type === "copy") {
-          alert("Copied to clipboard!");
+          navigator.clipboard.writeText(formData['output'] || "Copied Content").then(() => alert("Copied!"));
       }
   };
 
@@ -263,7 +412,9 @@ export default function Renderer({ initialConfig }) {
                 theme={theme} 
                 actions={handleAction} 
                 formData={formData} 
-                handleInputChange={handleInputChange} 
+                handleInputChange={handleInputChange}
+                config={config}
+                supabaseClient={supabaseClient}
              />
          ))}
       </div>
