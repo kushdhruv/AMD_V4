@@ -1,214 +1,143 @@
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, Sparkles, Copy, Check } from "lucide-react";
-import { clsx } from "clsx";
-import { deductCredits } from "@/lib/economy";
-import { supabase } from "@/lib/supabase/client";
+import { MessageSquare, Plus, Trash2, Copy, Check, Clock, ArrowLeft, Sparkles } from "lucide-react";
 
-const TONES = [
-  { id: "professional", name: "Professional", emoji: "👔" },
-  { id: "funny", name: "Funny/Witty", emoji: "🤪" },
-  { id: "inspirational", name: "Inspirational", emoji: "✨" },
-  { id: "dramatic", name: "Dramatic", emoji: "🎭" },
-  { id: "urgency", name: "Urgency/FOMO", emoji: "⏰" },
-];
+const TONE_EMOJIS = {
+  professional: "👔", funny: "🤪", inspirational: "✨", dramatic: "🎭", urgency: "⏰"
+};
 
-const PLATFORMS = [
-  { id: "instagram", name: "Instagram Caption" },
-  { id: "twitter", name: "Twitter / X Post" },
-  { id: "linkedin", name: "LinkedIn Post" },
-  { id: "email", name: "Email Subject Line" },
-  { id: "tagline", name: "Brand Tagline" },
-];
-
-export default function PhraseGeneratorPage() {
-  const [topic, setTopic] = useState("");
-  const [tone, setTone] = useState("professional");
-  const [platform, setPlatform] = useState("instagram");
-  const [generating, setGenerating] = useState(false);
-  const [results, setResults] = useState([]);
+export default function PhraseGeneratorLanding() {
+  const [projects, setProjects] = useState([]);
   const [copied, setCopied] = useState(null);
 
-  const handleGenerate = async () => {
-    if (!topic.trim()) return;
-    
-    setGenerating(true);
-    setResults([]);
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("phrasegen_projects") || "[]");
+      setProjects(stored);
+    } catch { setProjects([]); }
+  }, []);
 
-    // Check Credits (Low cost: 5 credits)
-    const COST = 5;
-    const { data: { user } } = await supabase.auth.getUser();
-    if(!user) {
-        alert("Please login");
-        setGenerating(false);
-        return;
-    }
-
-    const hasCredits = await deductCredits(user.id, COST, `Generated Phrases: ${platform}`);
-    if(!hasCredits) {
-        alert(`Insufficient credits! This tool costs ${COST} credits.`);
-        setGenerating(false);
-        return;
-    }
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // Mock Results based on inputs
-    const mockPhrases = [
-        `Unlock the power of ${topic} today! 🚀 #Innovation`,
-        `Don't just dream about ${topic}, make it happen. ✨`,
-        `The secret to ${topic} isn't what you think... 👀`,
-        `Why everyone is talking about ${topic} this week! 🔥`,
-        `Ready to level up your ${topic} game? Let's go! 💪`
-    ];
-    
-    if (tone === "funny") {
-        mockPhrases[0] = `Warning: ${topic} may cause extreme happiness. 😂`;
-        mockPhrases[1] = `If ${topic} was a sport, I'd be Olympic gold. 🥇`;
-    } else if (tone === "urgency") {
-         mockPhrases[0] = `Last chance to master ${topic}! ⏳`;
-         mockPhrases[1] = `Stop scrolling! You need to see this about ${topic}. 🚨`;
-    }
-
-    setResults(mockPhrases);
-    setGenerating(false);
+  const deleteProject = (id) => {
+    const updated = projects.filter((p) => p.id !== id);
+    setProjects(updated);
+    localStorage.setItem("phrasegen_projects", JSON.stringify(updated));
   };
 
-  const copyToClipboard = (text, index) => {
+  const copyPhrase = (text, key) => {
     navigator.clipboard.writeText(text);
-    setCopied(index);
+    setCopied(key);
     setTimeout(() => setCopied(null), 2000);
   };
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-100px)] flex flex-col md:flex-row gap-8 p-4 md:p-8">
-      
-      {/* Sidebar Controls */}
-      <div className="w-full md:w-[400px] flex flex-col gap-6 overflow-y-auto pr-4 custom-scrollbar">
-        <div className="flex items-center gap-4 mb-2">
-            <Link href="/dashboard/generators" className="p-2 hover:bg-neutral-800 rounded-full transition">
-                <ArrowLeft size={20} className="text-neutral-400" />
-            </Link>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                <MessageSquare className="text-primary" size={24} />
-                Phrase Generator
+    <div className="max-w-7xl mx-auto py-8 px-4 md:px-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/generators" className="p-2 hover:bg-neutral-800 rounded-full transition">
+            <ArrowLeft size={20} className="text-neutral-400" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <MessageSquare className="text-primary" />
+              Catchy Phrase Generator
             </h1>
+            <p className="text-neutral-400 text-sm mt-1">
+              Generate creative captions, hooks, and taglines for your events and posts.
+            </p>
+          </div>
         </div>
-
-        {/* Input */}
-        <div>
-            <label className="block text-sm font-bold text-neutral-300 mb-2">Topic / Keyword</label>
-            <textarea
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition min-h-[100px] resize-none"
-                placeholder="e.g. New AI Coffee Machine launch, Summer Music Festival, Fitness App sale..."
-            />
-        </div>
-
-        {/* Platform Selection */}
-        <div>
-             <label className="block text-sm font-bold text-neutral-300 mb-2">Platform / Format</label>
-             <select 
-                value={platform} 
-                onChange={(e) => setPlatform(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-white outline-none focus:border-primary"
-             >
-                 {PLATFORMS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-             </select>
-        </div>
-
-        {/* Tone Selection */}
-        <div>
-            <label className="block text-sm font-bold text-neutral-300 mb-3">Tone of Voice</label>
-            <div className="grid grid-cols-2 gap-2">
-                {TONES.map((t) => (
-                    <button
-                        key={t.id}
-                        onClick={() => setTone(t.id)}
-                        className={clsx(
-                            "p-3 rounded-lg border text-left flex items-center gap-2 transition-all text-xs font-bold",
-                            tone === t.id ? "border-primary bg-primary/10 text-white" : "border-neutral-800 bg-neutral-900 text-neutral-400 hover:border-neutral-700"
-                        )}
-                    >
-                        <span className="text-lg">{t.emoji}</span> {t.name}
-                    </button>
-                ))}
-            </div>
-        </div>
-
-        <button
-            onClick={handleGenerate}
-            disabled={!topic.trim() || generating}
-            className="w-full bg-primary hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 mt-auto shadow-lg shadow-primary/20"
+        <Link
+          href="/dashboard/generators/phrases/new"
+          className="bg-primary hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm transition"
         >
-            {generating ? (
-                <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Generating...
-                </>
-            ) : (
-                <>
-                    <Sparkles size={20} />
-                    Generate Phrases
-                </>
-            )}
-        </button>
+          <Plus size={16} />
+          New Phrases
+        </Link>
       </div>
 
-      {/* Results Area */}
-      <div className="flex-1 bg-black/40 rounded-2xl border border-neutral-800 p-8 overflow-y-auto">
-         
-         {!results.length && !generating && (
-             <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
-                 <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6 border border-neutral-800">
-                    <MessageSquare size={40} className="text-neutral-600" />
-                 </div>
-                 <h2 className="text-xl font-bold text-white mb-2">Ready to Write</h2>
-                 <p className="text-neutral-500 max-w-sm">
-                    Enter a topic and select a vibe. AI will generate catchy hooks and captions for you.
-                 </p>
-             </div>
-         )}
-         
-         {generating && (
-            <div className="space-y-4">
-                {[1,2,3].map(i => (
-                    <div key={i} className="h-24 bg-neutral-900/50 rounded-xl animate-pulse" />
+      {/* Projects Grid */}
+      {projects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 text-center">
+          <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6 border border-neutral-800">
+            <MessageSquare size={40} className="text-neutral-600" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">No phrases yet</h2>
+          <p className="text-neutral-500 max-w-sm mb-6">
+            Generate catchy captions, hooks, and taglines for Instagram, Twitter, LinkedIn, and more. Pick a tone and let AI do the rest.
+          </p>
+          <Link
+            href="/dashboard/generators/phrases/new"
+            className="bg-primary hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition"
+          >
+            <Sparkles size={16} />
+            Generate Your First Phrases
+          </Link>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {projects.map((project) => (
+            <div key={project.id} className="bg-neutral-900/50 border border-neutral-800 hover:border-primary/50 rounded-xl overflow-hidden flex flex-col transition group">
+              {/* Header */}
+              <div className="p-5 pb-3 border-b border-neutral-800/50">
+                <div className="flex items-start justify-between mb-2">
+                  <h3 className="text-white font-semibold text-base leading-tight flex-1 mr-2">
+                    {project.topic?.slice(0, 50) || "Phrase Set"}
+                    {project.topic?.length > 50 ? "..." : ""}
+                  </h3>
+                  <button
+                    onClick={() => deleteProject(project.id)}
+                    className="p-1.5 hover:bg-red-500/10 text-neutral-500 hover:text-red-400 rounded-lg transition shrink-0"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-neutral-500">
+                  <span className="flex items-center gap-1"><Clock size={12} /> {project.date}</span>
+                  <span className="px-2 py-0.5 bg-white/5 rounded-full">{project.platform}</span>
+                  <span>{TONE_EMOJIS[project.tone] || ""} {project.tone}</span>
+                </div>
+              </div>
+
+              {/* Phrases */}
+              <div className="p-4 flex-1 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                {(project.phrases || []).slice(0, 3).map((phrase, i) => (
+                  <div
+                    key={i}
+                    className="group/phrase flex items-start gap-2 p-2 rounded-lg hover:bg-white/5 transition"
+                  >
+                    <p className="text-neutral-300 text-xs leading-relaxed flex-1">{phrase}</p>
+                    <button
+                      onClick={() => copyPhrase(phrase, `${project.id}-${i}`)}
+                      className="shrink-0 p-1 rounded text-neutral-500 hover:text-white transition opacity-0 group-hover/phrase:opacity-100"
+                    >
+                      {copied === `${project.id}-${i}` ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+                    </button>
+                  </div>
                 ))}
+                {(project.phrases?.length || 0) > 3 && (
+                  <p className="text-xs text-neutral-600 text-center pt-1">
+                    +{project.phrases.length - 3} more phrases
+                  </p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 pb-4 pt-2 border-t border-neutral-800/50">
+                <Link
+                  href="/dashboard/generators/phrases/new"
+                  className="w-full bg-white/5 hover:bg-white/10 text-neutral-300 text-xs py-2 rounded-lg text-center transition block"
+                >
+                  Generate More
+                </Link>
+              </div>
             </div>
-         )}
-
-         {results.length > 0 && !generating && (
-             <div className="space-y-4 animate-fade-in-up">
-                 <h3 className="text-sm font-bold text-neutral-400 uppercase tracking-wider mb-4">Generated Results</h3>
-                 {results.map((phrase, i) => (
-                     <div key={i} className="glass-card p-6 flex flex-col gap-4 group hover:border-primary/50 transition-colors">
-                         <p className="text-lg font-medium text-white leading-relaxed">
-                             {phrase}
-                         </p>
-                         <div className="flex justify-end">
-                             <button 
-                                onClick={() => copyToClipboard(phrase, i)}
-                                className={clsx("flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full transition-colors", 
-                                    copied === i ? "bg-green-500/20 text-green-500" : "bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10"
-                                )}
-                             >
-                                 {copied === i ? <Check size={14} /> : <Copy size={14} />}
-                                 {copied === i ? "Copied" : "Copy"}
-                             </button>
-                         </div>
-                     </div>
-                 ))}
-             </div>
-         )}
-
-      </div>
-
+          ))}
+        </div>
+      )}
     </div>
   );
 }

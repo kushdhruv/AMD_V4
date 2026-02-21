@@ -11,7 +11,7 @@ import crypto from "crypto";
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
-const BYTEZ_API_KEY = process.env.BYTEZ_API_KEY || "be7c4aa3d07ed4897bbbb7810eb79e83";
+const BYTEZ_API_KEY = process.env.BYTEZ_API_KEY;
 const MODEL_ID = "google/imagen-4.0-ultra-generate-001";
 const BYTEZ_API_URL = `https://api.bytez.com/models/v2/${MODEL_ID}`;
 const MAX_RETRIES = 3;
@@ -125,8 +125,19 @@ async function callBytezApi(prompt) {
                 signal: AbortSignal.timeout(120000), // 120s timeout
             });
 
-            const data = await resp.json();
             console.log(`[ImageGen] Response status=${resp.status}`);
+
+            // Handle non-OK responses
+            if (!resp.ok) {
+                const rawText = await resp.text();
+                console.log(`[ImageGen] ⚠️ HTTP ${resp.status} response: ${rawText.slice(0, 500)}`);
+                lastError = `API returned HTTP ${resp.status}: ${rawText.slice(0, 200)}`;
+                await new Promise((r) => setTimeout(r, attempt * 3000));
+                continue;
+            }
+
+            const data = await resp.json();
+            console.log(`[ImageGen] Response keys: ${Object.keys(data).join(", ")}`);
 
             if (data.error) {
                 lastError = String(data.error);
@@ -139,23 +150,47 @@ async function callBytezApi(prompt) {
             const output = data.output;
             let imageUrl = null;
 
-            if (typeof output === "string") {
-                imageUrl = output;
-            } else if (output && typeof output === "object" && !Array.isArray(output)) {
-                imageUrl = output.image || output.url || output.data;
-                if (!imageUrl) {
-                    for (const v of Object.values(output)) {
-                        if (typeof v === "string" && v.includes("http")) { imageUrl = v; break; }
+            if (!output && !data.image && !data.url && !data.data) {
+                // Try to find image data anywhere in the response
+                console.log(`[ImageGen] Raw response: ${JSON.stringify(data).slice(0, 500)}`);
+                // Check if data itself contains base64 or URL
+                for (const [key, val] of Object.entries(data)) {
+                    if (typeof val === "string" && (val.startsWith("http") || val.startsWith("data:image"))) {
+                        imageUrl = val;
+                        break;
                     }
                 }
-            } else if (Array.isArray(output) && output.length > 0) {
-                const first = output[0];
-                imageUrl = typeof first === "string" ? first : (first?.image || first?.url);
+                if (!imageUrl) {
+                    lastError = `No image output in response: ${JSON.stringify(data).slice(0, 300)}`;
+                    console.log(`[ImageGen] ⚠️ ${lastError}`);
+                    await new Promise((r) => setTimeout(r, attempt * 2000));
+                    continue;
+                }
+            }
+
+            if (!imageUrl) {
+                if (typeof output === "string") {
+                    imageUrl = output;
+                } else if (output && typeof output === "object" && !Array.isArray(output)) {
+                    imageUrl = output.image || output.url || output.data || output.images?.[0];
+                    if (!imageUrl) {
+                        for (const v of Object.values(output)) {
+                            if (typeof v === "string" && (v.includes("http") || v.startsWith("data:image"))) { imageUrl = v; break; }
+                        }
+                    }
+                } else if (Array.isArray(output) && output.length > 0) {
+                    const first = output[0];
+                    imageUrl = typeof first === "string" ? first : (first?.image || first?.url);
+                }
+                // Also check top-level data fields
+                if (!imageUrl) {
+                    imageUrl = data.image || data.url || data.data || data.images?.[0];
+                }
             }
 
             if (imageUrl) return { imageUrl, error: null };
 
-            lastError = `No image URL in response: ${JSON.stringify(output).slice(0, 200)}`;
+            lastError = `No image URL in response: ${JSON.stringify(data).slice(0, 300)}`;
             console.log(`[ImageGen] ⚠️ ${lastError}`);
         } catch (e) {
             lastError = e.message;

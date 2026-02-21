@@ -128,8 +128,8 @@ export default function LandingPage() {
         <div className="grid md:grid-cols-3 gap-6">
           {[
             { icon: PenTool, title: "AI Content & Posters", desc: "Generate catchy captions, promotional emails, and stunning posters in seconds." },
-            { icon: Globe, title: "EventForge Website Builder", desc: "Create professional event landing pages with research-backed blueprints." },
-            { icon: Smartphone, title: "AppForge App Builder", desc: "Build native Android apps for announcements and registrations without coding." },
+            { icon: Globe, title: "WebsiteBuilder", desc: "Create professional event landing pages with research-backed blueprints." },
+            { icon: Smartphone, title: "AppBuilder", desc: "Build native Android apps for announcements and registrations without coding." },
             { icon: Layout, title: "Promo Video Generator", desc: "Turn text prompts into high-energy promotional videos for social media." },
             { icon: Download, title: "Registration System", desc: "Integrated forms, QR code ticketing, and attendee management dashboard." },
             { icon: BarChart2, title: "Feedback Analyzer", desc: "Collect post-event feedback and get AI-summarized sentiment reports." }
@@ -182,7 +182,7 @@ export default function LandingPage() {
           <div className="flex-1 space-y-8">
               <ScrollReveal>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-bold uppercase tracking-wider">
-                    EventForge AI
+                    WebsiteBuilder AI
                 </div>
                 <h2 className="text-4xl md:text-5xl font-bold leading-tight mt-4">
                     Launch a Professional <br /> Event Website in Seconds.
@@ -204,7 +204,7 @@ export default function LandingPage() {
                     ))}
                 </ul>
                 <button onClick={() => handleNavigation('/dashboard/website-builder')} className="inline-block mt-8 px-8 py-3 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors">
-                    Try EventForge
+                    Try WebsiteBuilder
                 </button>
               </ScrollReveal>
           </div>
@@ -228,7 +228,7 @@ export default function LandingPage() {
           <div className="flex-1 space-y-8">
               <ScrollReveal>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-400 text-xs font-bold uppercase tracking-wider">
-                    AppForge AI
+                    AppBuilder AI
                 </div>
                 <h2 className="text-4xl md:text-5xl font-bold leading-tight mt-4">
                     Build and Download <br /> Real Desktop/Mobile Apps.
@@ -250,7 +250,7 @@ export default function LandingPage() {
                     ))}
                 </ul>
                 <button onClick={() => handleNavigation('/dashboard/app-builder')} className="inline-block mt-8 px-8 py-3 rounded-full bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors">
-                    Try AppForge
+                    Try AppBuilder
                 </button>
               </ScrollReveal>
           </div>
@@ -282,14 +282,16 @@ export default function LandingPage() {
          </ScrollReveal>
          <div className="grid md:grid-cols-4 gap-6">
              {[
-                 { title: "Hackathon Starter", type: "Website", author: "@dev_alex", likes: "1.2k" },
-                 { title: "Club Registration", type: "App", author: "@campus_club", likes: "850" },
-                 { title: "Tech Fest 2024", type: "Bundle", author: "@tech_society", likes: "2.3k" },
-                 { title: "Workshop Certs", type: "Utility", author: "@design_lead", likes: "500" },
+                 { title: "Hackathon Starter", type: "Website", author: "@dev_alex", likes: "1.2k", img: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80" },
+                 { title: "Club Registration", type: "App", author: "@campus_club", likes: "850", img: "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=600&q=80" },
+                 { title: "Tech Fest 2024", type: "Bundle", author: "@tech_society", likes: "2.3k", img: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=600&q=80" },
+                 { title: "Workshop Certs", type: "Utility", author: "@design_lead", likes: "500", img: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&q=80" },
              ].map((item, i) => (
                  <ScrollReveal key={i} delay={i * 0.1}>
                     <div className="glass-card p-6 text-left group cursor-pointer h-full">
-                        <div className="h-32 bg-neutral-800 rounded-lg mb-4 group-hover:bg-neutral-700 transition" />
+                        <div className="h-32 rounded-lg mb-4 overflow-hidden">
+                            <img src={item.img} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        </div>
                         <div className="flex justify-between items-start mb-2">
                             <h4 className="font-bold">{item.title}</h4>
                             <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-neutral-400">{item.type}</span>
@@ -375,7 +377,7 @@ export default function LandingPage() {
                     <Zap size={18} className="text-primary" /> AI Event OS
                   </div>
                   <p className="text-text-secondary max-w-sm">
-                      Note: This is a hackathon project. Not heavily tested for production use. Built with ❤️ using Gemini, Groq, and Next.js.
+                      Note: This is a hackathon project. Not heavily tested for production use. Made with ❤️ by team <span className="text-primary font-bold">Alpha Hacks</span>.
                   </p>
               </div>
               <div>
@@ -389,7 +391,7 @@ export default function LandingPage() {
               <div>
                   <h5 className="font-bold mb-4">Connect</h5>
                   <ul className="space-y-2 text-text-secondary">
-                      <li><a href="#" className="hover:text-white">GitHub</a></li>
+                      <li><a href="https://github.com/kushdhruv/AMD_V4" target="_blank" rel="noopener noreferrer" className="hover:text-white">GitHub</a></li>
                       <li><a href="#" className="hover:text-white">Twitter</a></li>
                       <li><a href="#" className="hover:text-white">Discord</a></li>
                   </ul>

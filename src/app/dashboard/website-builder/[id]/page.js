@@ -22,9 +22,28 @@ export default function ProjectDetailPage({ params }) {
   const [loadingRegs, setLoadingRegs] = useState(false);
 
   // Chat State
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const [messages, setMessages] = useState([]);
   const [isChatProcessing, setIsChatProcessing] = useState(false);
+
+  // Load chat history on mount
+  useEffect(() => {
+    if (id) {
+        try {
+            const saved = localStorage.getItem(`wb_chat_${id}`);
+            if (saved) setMessages(JSON.parse(saved));
+        } catch (e) {
+            console.error("Failed to load chat history", e);
+        }
+    }
+  }, [id]);
+
+  // Save chat history on update
+  useEffect(() => {
+     if (id && messages.length > 0) {
+         localStorage.setItem(`wb_chat_${id}`, JSON.stringify(messages));
+     }
+  }, [messages, id]);
 
   const handleSendMessage = async (msg) => {
     setMessages(prev => [...prev, { role: "user", content: msg }]);
@@ -36,7 +55,9 @@ export default function ProjectDetailPage({ params }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 message: msg,
+                chatHistory: messages.slice(-5), // Send last 5 messages for context
                 currentBlueprint: bp, // Send current state
+                currentTheme: project?.theme_json, // Send theme
             }),
         });
 
@@ -47,8 +68,12 @@ export default function ProjectDetailPage({ params }) {
 
         const data = await response.json();
 
-        // 1. Update Blueprint State (Immediate Preview)
-        setProject(prev => ({ ...prev, blueprint_json: data.blueprint }));
+        // 1. Update Blueprint and Theme State (Immediate Preview)
+        setProject(prev => ({ 
+            ...prev, 
+            blueprint_json: data.blueprint || prev.blueprint_json,
+            theme_json: data.theme || prev.theme_json
+        }));
 
         // 2. Add Assistant Message
         setMessages(prev => [...prev, { 
@@ -60,7 +85,8 @@ export default function ProjectDetailPage({ params }) {
         const { error: dbError } = await supabase
             .from("projects")
             .update({ 
-                blueprint_json: data.blueprint,
+                blueprint_json: data.blueprint || bp,
+                theme_json: data.theme || project?.theme_json,
                 updated_at: new Date().toISOString()
             })
             .eq("id", id);

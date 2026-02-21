@@ -1,37 +1,30 @@
 /**
- * Video Generator — Self-Contained Next.js API Route
+ * Video Generator — Proxy to FastAPI Backend + AnimateDiff Worker
  *
- * Ported from: Text_To_Video/backend/ (FastAPI + AnimateDiff worker)
- * - Prompt enhancement via Groq API (HTTP, no SDK needed)
- * - Video generation via Bytez API (replaces local AnimateDiff)
- * - In-memory task queue with polling (replaces SQLAlchemy + worker)
+ * Architecture:
+ *   Next.js :3000 → proxy → FastAPI :8000 → Worker (AnimateDiff GPU)
  *
- * NO separate Python server needed — runs entirely within Next.js.
+ * The FastAPI backend manages a task queue (SQLite).
+ * A separate Python worker polls for pending tasks and generates
+ * video clips using AnimateDiff (guoyww/animatediff-motion-adapter-v1-5-2).
+ *
+ * This route handles:
+ *   POST → Create task (with Groq prompt enhancement)
+ *   GET  → Poll task status / list tasks
  */
 import { NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
+const BACKEND_URL = process.env.VIDEO_BACKEND_URL || "http://localhost:8000";
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
-const BYTEZ_API_KEY = process.env.BYTEZ_API_KEY || "be7c4aa3d07ed4897bbbb7810eb79e83";
-
-// Bytez text-to-video model
-const VIDEO_MODEL_ID = "ali-vilab/text-to-video-ms-1.7b";
-const BYTEZ_VIDEO_URL = `https://api.bytez.com/models/v2/${VIDEO_MODEL_ID}`;
 
 // ---------------------------------------------------------------------------
-// In-memory task queue (persists in dev mode, resets on server restart)
-// ---------------------------------------------------------------------------
-const tasks = new Map(); // taskId -> { id, status, prompt, enhancedPrompt, videoUrl, error, createdAt }
-let taskCounter = 0;
-
-// ---------------------------------------------------------------------------
-// Groq API — Prompt Enhancement (ported from groq_handler.py)
+// Groq API — Prompt Enhancement (same as before, runs in Next.js)
 // ---------------------------------------------------------------------------
 async function enhancePrompt(prompt) {
     if (!GROQ_API_KEY) {
-        // Fallback if no Groq key
         return `${prompt}, cinematic lighting, 8k resolution, photorealistic, highly detailed, professional cinematography`;
     }
 
@@ -43,7 +36,7 @@ async function enhancePrompt(prompt) {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "llama3-8b-8192",
+                model: "llama-3.3-70b-versatile",
                 temperature: 0.7,
                 max_tokens: 200,
                 messages: [
@@ -73,95 +66,56 @@ async function enhancePrompt(prompt) {
         console.error("[VideoGen] Groq enhancement failed:", e.message);
     }
 
-    // Fallback
     return `${prompt}, cinematic lighting, 8k resolution, photorealistic, highly detailed, professional cinematography`;
 }
 
 // ---------------------------------------------------------------------------
-// Bytez API — Video Generation (replaces local AnimateDiff worker)
+// Helper: Register a temporary user on the FastAPI backend
+// (The original backend requires auth — we create a service account)
 // ---------------------------------------------------------------------------
-async function generateVideo(prompt) {
+let serviceToken = null;
+
+async function getServiceToken() {
+    if (serviceToken) return serviceToken;
+
     try {
-        console.log(`[VideoGen] 🎬 Calling Bytez video API…`);
-        const resp = await fetch(BYTEZ_VIDEO_URL, {
+        // Try to register first (JSON body)
+        const regResp = await fetch(`${BACKEND_URL}/auth/register`, {
             method: "POST",
-            headers: {
-                "Authorization": BYTEZ_API_KEY,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ text: prompt }),
-            signal: AbortSignal.timeout(300000), // 5 minute timeout for video
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: "nextjs_service", password: "service_password_123" }),
+            signal: AbortSignal.timeout(5000),
         });
 
-        const data = await resp.json();
-        console.log(`[VideoGen] Response status=${resp.status}`);
-
-        if (data.error) {
-            return { videoUrl: null, error: String(data.error) };
+        if (regResp.ok) {
+            // Registration succeeded — returns token directly
+            const data = await regResp.json();
+            serviceToken = data.access_token;
+            console.log("[VideoGen] Registered & got service token");
+            return serviceToken;
         }
 
-        // Extract video URL from response
-        const output = data.output;
-        let videoUrl = null;
+        // If already exists (400), try login
+        const loginResp = await fetch(`${BACKEND_URL}/auth/token`, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: "username=nextjs_service&password=service_password_123",
+            signal: AbortSignal.timeout(5000),
+        });
 
-        if (typeof output === "string") {
-            videoUrl = output;
-        } else if (output && typeof output === "object" && !Array.isArray(output)) {
-            videoUrl = output.video || output.url || output.data || output.mp4;
-            if (!videoUrl) {
-                for (const v of Object.values(output)) {
-                    if (typeof v === "string" && (v.includes("http") || v.includes(".mp4"))) {
-                        videoUrl = v;
-                        break;
-                    }
-                }
-            }
-        } else if (Array.isArray(output) && output.length > 0) {
-            const first = output[0];
-            videoUrl = typeof first === "string" ? first : (first?.video || first?.url);
+        if (loginResp.ok) {
+            const data = await loginResp.json();
+            serviceToken = data.access_token;
+            console.log("[VideoGen] Logged in & got service token");
+            return serviceToken;
         }
 
-        if (videoUrl) return { videoUrl, error: null };
-
-        return { videoUrl: null, error: `No video URL in response: ${JSON.stringify(output).slice(0, 300)}` };
+        console.error("[VideoGen] Auth failed:", loginResp.status, await loginResp.text());
     } catch (e) {
-        console.error("[VideoGen] Bytez video API error:", e.message);
-        return { videoUrl: null, error: e.message };
+        console.error("[VideoGen] Auth failed:", e.message);
     }
-}
 
-// ---------------------------------------------------------------------------
-// Background task processor (fire-and-forget async)
-// ---------------------------------------------------------------------------
-async function processTask(taskId) {
-    const task = tasks.get(taskId);
-    if (!task) return;
-
-    try {
-        // Step 1: Enhance prompt with Groq
-        task.status = "processing";
-        console.log(`[VideoGen] Processing task ${taskId}: enhancing prompt…`);
-        const enhanced = await enhancePrompt(task.prompt);
-        task.enhancedPrompt = enhanced;
-
-        // Step 2: Generate video via Bytez
-        console.log(`[VideoGen] Task ${taskId}: generating video…`);
-        const { videoUrl, error } = await generateVideo(enhanced);
-
-        if (error) {
-            task.status = "failed";
-            task.error = error;
-            console.log(`[VideoGen] ❌ Task ${taskId} failed: ${error}`);
-        } else {
-            task.status = "completed";
-            task.video_url = videoUrl;
-            console.log(`[VideoGen] ✅ Task ${taskId} completed!`);
-        }
-    } catch (e) {
-        task.status = "failed";
-        task.error = e.message;
-        console.error(`[VideoGen] ❌ Task ${taskId} error:`, e);
-    }
+    return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,38 +135,66 @@ export async function POST(request) {
             return NextResponse.json({ error: "Duration must be 5, 10, 15, or 30" }, { status: 400 });
         }
 
-        // Create task
-        taskCounter++;
-        const taskId = taskCounter;
-        const task = {
-            id: taskId,
-            prompt: prompt.trim(),
-            duration: dur,
-            status: "pending",
-            video_url: null,
-            error: null,
-            created_at: new Date().toISOString(),
-        };
-        tasks.set(taskId, task);
+        // Step 1: Enhance prompt with Groq
+        console.log("[VideoGen] Enhancing prompt with Groq...");
+        const enhancedPrompt = await enhancePrompt(prompt.trim());
+        console.log(`[VideoGen] Enhanced: ${enhancedPrompt.slice(0, 100)}...`);
 
-        // Fire-and-forget: start processing in background
-        // This works because Next.js dev server is a long-lived Node.js process
-        processTask(taskId).catch((e) => {
-            console.error(`[VideoGen] Background task ${taskId} error:`, e);
-            const t = tasks.get(taskId);
-            if (t) { t.status = "failed"; t.error = e.message; }
+        // Step 2: Get auth token for FastAPI
+        const token = await getServiceToken();
+        if (!token) {
+            return NextResponse.json(
+                { error: "Cannot connect to Video backend. Please ensure FastAPI is running on port 8000." },
+                { status: 503 }
+            );
+        }
+
+        // Step 3: Create task on FastAPI backend
+        const taskResp = await fetch(`${BACKEND_URL}/tasks/`, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                prompt: enhancedPrompt,
+                duration: dur,
+            }),
+            signal: AbortSignal.timeout(10000),
         });
 
+        if (!taskResp.ok) {
+            const errData = await taskResp.json().catch(() => ({}));
+            console.error("[VideoGen] FastAPI error:", taskResp.status, errData);
+            // Reset token if auth error
+            if (taskResp.status === 401) serviceToken = null;
+            return NextResponse.json(
+                { error: errData.detail || `Backend error: ${taskResp.status}` },
+                { status: taskResp.status }
+            );
+        }
+
+        const taskData = await taskResp.json();
+        console.log(`[VideoGen] Task created: id=${taskData.id}, status=${taskData.status}`);
+
         return NextResponse.json({
-            id: taskId,
-            prompt: task.prompt,
-            duration: task.duration,
-            status: task.status,
+            id: taskData.id,
+            prompt: enhancedPrompt,
+            duration: dur,
+            status: taskData.status,
             video_url: null,
-            created_at: task.created_at,
+            created_at: taskData.created_at,
         });
     } catch (err) {
         console.error("[VideoGen] POST error:", err);
+
+        if (err.name === "TimeoutError" || err.message?.includes("fetch")) {
+            return NextResponse.json(
+                { error: "Cannot connect to Video backend. Please run: uvicorn app.main:app --port 8000" },
+                { status: 503 }
+            );
+        }
+
         return NextResponse.json({ error: `Failed to create task: ${err.message}` }, { status: 500 });
     }
 }
@@ -222,28 +204,90 @@ export async function POST(request) {
 // ---------------------------------------------------------------------------
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
-    const taskId = parseInt(searchParams.get("taskId"));
+    const taskId = searchParams.get("taskId");
+    const assetUrl = searchParams.get("assetUrl");
 
-    if (!taskId) {
-        // Return all tasks (recent first)
-        const all = Array.from(tasks.values())
-            .sort((a, b) => b.id - a.id)
-            .slice(0, 20);
-        return NextResponse.json({ tasks: all });
+    try {
+        const token = await getServiceToken();
+        if (!token) {
+            return NextResponse.json(
+                { error: "Cannot connect to Video backend" },
+                { status: 503 }
+            );
+        }
+
+        // --- Proxy Media Requests ---
+        if (assetUrl) {
+            // assetUrl is something like "/items/8_final_8.mp4"
+            const mediaResponse = await fetch(`${BACKEND_URL}${assetUrl}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            
+            if (!mediaResponse.ok) {
+                 return NextResponse.json({ error: "Media not found" }, { status: 404 });
+            }
+            
+            return new NextResponse(mediaResponse.body, {
+                headers: {
+                    "Content-Type": mediaResponse.headers.get("Content-Type") || "video/mp4",
+                    "Cache-Control": "public, max-age=31536000",
+                }
+            });
+        }
+        // ----------------------------
+
+        if (!taskId) {
+            // Return all tasks
+            const resp = await fetch(`${BACKEND_URL}/tasks/`, {
+                headers: { "Authorization": `Bearer ${token}` },
+                signal: AbortSignal.timeout(5000),
+            });
+
+            if (!resp.ok) {
+                if (resp.status === 401) serviceToken = null;
+                return NextResponse.json({ tasks: [] });
+            }
+
+            const tasks = await resp.json();
+            return NextResponse.json({ tasks });
+        }
+
+        // Poll specific task
+        const resp = await fetch(`${BACKEND_URL}/tasks/${taskId}`, {
+            headers: { "Authorization": `Bearer ${token}` },
+            signal: AbortSignal.timeout(5000),
+        });
+
+        if (!resp.ok) {
+            if (resp.status === 401) serviceToken = null;
+            return NextResponse.json({ error: "Task not found" }, { status: 404 });
+        }
+
+        const task = await resp.json();
+
+        // If completed, build a proxy video URL that goes through Next.js instead of localhost
+        let videoUrl = task.video_url;
+        if (videoUrl) {
+            videoUrl = `/api/generators/video?assetUrl=${encodeURIComponent(videoUrl)}`;
+        }
+
+        return NextResponse.json({
+            id: task.id,
+            prompt: task.prompt,
+            duration: task.duration,
+            status: task.status,
+            video_url: videoUrl,
+            created_at: task.created_at,
+        });
+    } catch (err) {
+        console.error("[VideoGen] GET error:", err);
+
+        if (err.name === "TimeoutError" || err.message?.includes("fetch")) {
+            // Backend not running — return empty gracefully
+            if (!taskId) return NextResponse.json({ tasks: [] });
+            return NextResponse.json({ error: "Video backend offline" }, { status: 503 });
+        }
+
+        return NextResponse.json({ error: err.message }, { status: 500 });
     }
-
-    const task = tasks.get(taskId);
-    if (!task) {
-        return NextResponse.json({ error: "Task not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-        id: task.id,
-        prompt: task.prompt,
-        duration: task.duration,
-        status: task.status,
-        video_url: task.video_url,
-        error: task.error,
-        created_at: task.created_at,
-    });
 }

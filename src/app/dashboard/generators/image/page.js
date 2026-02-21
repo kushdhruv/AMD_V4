@@ -1,270 +1,187 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Image as ImageIcon, Sparkles, Download, Layers, Palette, Layout, AlertCircle, Loader2, ImagePlus } from "lucide-react";
-import { clsx } from "clsx";
+import { Image as ImageIcon, Plus, Trash2, Download, Clock, ArrowLeft, Sparkles, Palette } from "lucide-react";
+import { supabase } from "@/lib/supabase/client";
 
-// Map to PosterForge backend categories & styles
-const CATEGORIES = [
-    { id: "Hackathon", name: "Hackathon", icon: "💻" },
-    { id: "Cultural Fest", name: "Cultural Fest", icon: "🎭" },
-    { id: "Workshop", name: "Workshop", icon: "🛠️" },
-    { id: "Tech Talk", name: "Tech Talk", icon: "🎤" },
-    { id: "Sports Meet", name: "Sports Meet", icon: "🏆" },
-    { id: "Freshers Party", name: "Freshers Party", icon: "🎉" },
-    { id: "Farewell", name: "Farewell", icon: "👋" },
-    { id: "Annual Day", name: "Annual Day", icon: "🏅" },
-];
+export default function ImageGeneratorLanding() {
+  const [projects, setProjects] = useState([]);
+  const [user, setUser] = useState(null);
 
-const STYLES = [
-    { id: "Minimalist", name: "Minimalist", icon: "⚪" },
-    { id: "Vibrant", name: "Vibrant", icon: "🌈" },
-    { id: "Retro", name: "Retro", icon: "📻" },
-    { id: "Neon Glow", name: "Neon Glow", icon: "🌃" },
-    { id: "Elegant", name: "Elegant", icon: "✨" },
-    { id: "Futuristic", name: "Futuristic", icon: "🚀" },
-    { id: "Watercolor", name: "Watercolor", icon: "🎨" },
-    { id: "3D Render", name: "3D Render", icon: "🧊" },
-];
+  useEffect(() => {
+    const fetchUserAndProjects = async () => {
+      // 1. Load from localStorage immediately for fast UI
+      let localProjects = [];
+      try {
+        localProjects = JSON.parse(localStorage.getItem("imagegen_projects") || "[]");
+        setProjects(localProjects);
+      } catch {}
 
-const FORMATS = [
-    { id: "poster", name: "Event Poster", ratio: "2:3", width: "w-[200px]", height: "h-[300px]" },
-    { id: "banner", name: "Web Banner", ratio: "16:9", width: "w-[300px]", height: "h-[169px]" },
-    { id: "social", name: "Social Post", ratio: "1:1", width: "w-[250px]", height: "h-[250px]" },
-];
+      // 2. Get User
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      setUser(user);
 
-export default function ImageGeneratorPage() {
-    const [prompt, setPrompt] = useState("");
-    const [category, setCategory] = useState("Hackathon");
-    const [style, setStyle] = useState("Vibrant");
-    const [format, setFormat] = useState("poster");
-    const [generating, setGenerating] = useState(false);
-    const [results, setResults] = useState([]); // Array of { url, prompt }
-    const [error, setError] = useState(null);
-    const [gallery, setGallery] = useState([]);
+      // 3. Fetch from Supabase
+      const { data: dbProjects, error } = await supabase
+        .from('generated_images')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    // Load gallery on mount
-    useEffect(() => {
-        fetch("/api/generators/image?action=gallery")
-            .then((r) => r.json())
-            .then((data) => {
-                if (data.images) setGallery(data.images);
-            })
-            .catch(() => {}); // Silently fail if backend not running
-    }, []);
-
-    const handleGenerate = async () => {
-        if (!prompt.trim()) return;
-        setGenerating(true);
-        setError(null);
-
-        try {
-            const resp = await fetch("/api/generators/image", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt, category, style }),
-            });
-
-            const data = await resp.json();
-
-            if (!resp.ok) {
-                setError(data.error || "Generation failed");
-                setGenerating(false);
-                return;
+      if (!error && dbProjects) {
+        // Map DB projects to UI format
+        const formattedDbProjects = dbProjects.map(p => ({
+            id: p.id,
+            prompt: p.prompt,
+            category: p.category,
+            style: p.style,
+            imageUrl: p.image_url,
+            date: new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        }));
+        
+        // Merge them. DB takes precedence.
+        const merged = [...formattedDbProjects];
+        // Add any local ones that don't have a matching DB id
+        const dbIds = new Set(formattedDbProjects.map(p => p.id));
+        localProjects.forEach(lp => {
+            if (!dbIds.has(lp.id)) {
+                merged.push(lp);
             }
-
-            // Add to results (prepend)
-            setResults((prev) => [
-                { url: data.image_url, prompt: data.prompt_used, cached: data.cached },
-                ...prev,
-            ]);
-        } catch (err) {
-            setError("Could not connect to Image backend. Is PosterForge running on port 5000?");
-        }
-
-        setGenerating(false);
+        });
+        
+        // Update state and localStorage
+        setProjects(merged);
+        localStorage.setItem("imagegen_projects", JSON.stringify(merged.slice(0, 50)));
+      }
     };
 
-    const allImages = [...results, ...gallery.map((g) => ({ url: g.url, prompt: g.prompt }))];
-    // Deduplicate by URL
-    const uniqueImages = allImages.filter((img, i, arr) => arr.findIndex((x) => x.url === img.url) === i);
+    fetchUserAndProjects();
+  }, []);
 
-    return (
-        <div className="max-w-7xl mx-auto h-[calc(100vh-100px)] flex flex-col md:flex-row gap-8">
-            {/* Sidebar Controls */}
-            <div className="w-full md:w-[350px] flex flex-col gap-6 overflow-y-auto pr-4 custom-scrollbar shrink-0">
-                <div className="flex items-center gap-4 mb-2">
-                    <Link href="/dashboard/generators" className="p-2 hover:bg-neutral-800 rounded-full transition">
-                        <ArrowLeft size={20} className="text-neutral-400" />
-                    </Link>
-                    <h1 className="text-xl font-bold text-white flex items-center gap-2">
-                        <ImageIcon className="text-primary" size={24} />
-                        Image Studio
-                    </h1>
-                </div>
+  const deleteProject = async (id) => {
+    // Optimistic UI update
+    const updated = projects.filter((p) => p.id !== id);
+    setProjects(updated);
+    localStorage.setItem("imagegen_projects", JSON.stringify(updated));
 
-                {/* Prompt */}
-                <div>
-                    <label className="block text-sm font-bold text-neutral-300 mb-2">Image Prompt</label>
-                    <textarea
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition min-h-[100px] resize-none"
-                        placeholder="A futuristic conference poster with glowing neon typography..."
-                    />
-                </div>
+    // Delete from Supabase
+    if (user) {
+        await supabase.from('generated_images').delete().eq('id', id);
+    }
+  };
 
-                {/* Category */}
-                <div>
-                    <label className="block text-sm font-bold text-neutral-300 mb-3 flex items-center gap-2">
-                        <Layers size={14} /> Event Category
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {CATEGORIES.map((c) => (
-                            <button
-                                key={c.id}
-                                onClick={() => setCategory(c.id)}
-                                className={clsx(
-                                    "p-2 rounded-lg border text-left transition-all flex items-center gap-2 text-sm",
-                                    category === c.id
-                                        ? "border-primary bg-primary/10 text-white"
-                                        : "border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-700"
-                                )}
-                            >
-                                <span>{c.icon}</span>
-                                <span className="font-medium truncate">{c.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Style */}
-                <div>
-                    <label className="block text-sm font-bold text-neutral-300 mb-3 flex items-center gap-2">
-                        <Palette size={14} /> Style
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        {STYLES.map((s) => (
-                            <button
-                                key={s.id}
-                                onClick={() => setStyle(s.id)}
-                                className={clsx(
-                                    "p-2 rounded-lg border text-left transition-all flex items-center gap-2 text-sm",
-                                    style === s.id
-                                        ? "border-primary bg-primary/10 text-white"
-                                        : "border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:border-neutral-700"
-                                )}
-                            >
-                                <span>{s.icon}</span>
-                                <span className="font-medium">{s.name}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Format */}
-                <div>
-                    <label className="block text-sm font-bold text-neutral-300 mb-3 flex items-center gap-2">
-                        <Layout size={14} /> Format
-                    </label>
-                    <div className="space-y-2">
-                        {FORMATS.map((f) => (
-                            <button
-                                key={f.id}
-                                onClick={() => setFormat(f.id)}
-                                className={clsx(
-                                    "w-full p-3 rounded-lg border text-left transition-all flex items-center justify-between group",
-                                    format === f.id
-                                        ? "border-primary bg-primary/10"
-                                        : "border-neutral-800 bg-neutral-900/50 hover:border-neutral-700"
-                                )}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className={clsx(
-                                            "border border-dashed rounded-sm border-current w-6 h-6 flex items-center justify-center text-[8px]",
-                                            format === f.id ? "text-primary" : "text-neutral-500"
-                                        )}
-                                    >
-                                        {f.ratio}
-                                    </div>
-                                    <span className={clsx("text-sm font-medium", format === f.id ? "text-white" : "text-neutral-400")}>
-                                        {f.name}
-                                    </span>
-                                </div>
-                                {format === f.id && <div className="w-2 h-2 rounded-full bg-primary" />}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Error */}
-                {error && (
-                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
-                        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                <button
-                    onClick={handleGenerate}
-                    disabled={!prompt.trim() || generating}
-                    className="w-full bg-primary hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition flex items-center justify-center gap-2 mt-auto shadow-lg shadow-primary/20"
-                >
-                    {generating ? (
-                        <>
-                            <Loader2 size={20} className="animate-spin" />
-                            Generating...
-                        </>
-                    ) : (
-                        <>
-                            <Sparkles size={20} />
-                            Generate Image
-                        </>
-                    )}
-                </button>
-            </div>
-
-            {/* Gallery Area */}
-            <div className="flex-1 bg-neutral-950 rounded-2xl border border-neutral-800 p-6 overflow-y-auto custom-scrollbar">
-                {uniqueImages.length > 0 ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        {uniqueImages.map((img, i) => (
-                            <div
-                                key={i}
-                                className="group relative rounded-xl overflow-hidden bg-neutral-900 aspect-[2/3] border border-neutral-800 hover:border-primary transition"
-                            >
-                                <img src={img.url} alt="Generated" className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-3 backdrop-blur-sm p-4">
-                                    <p className="text-white text-xs text-center line-clamp-3">{img.prompt}</p>
-                                    <div className="flex gap-2">
-                                        <a
-                                            href={img.url}
-                                            download
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-2 bg-white rounded-full text-black hover:scale-110 transition"
-                                            title="Download"
-                                        >
-                                            <Download size={16} />
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                        <ImagePlus size={64} className="mb-4 text-neutral-600" />
-                        <h2 className="text-2xl font-bold text-white mb-2">Image Studio</h2>
-                        <p className="max-w-sm mx-auto text-neutral-400">
-                            Generate professional event posters, banners, and social media content powered by Google Imagen 4.0.
-                        </p>
-                    </div>
-                )}
-            </div>
+  return (
+    <div className="max-w-7xl mx-auto py-8 px-4 md:px-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/generators" className="p-2 hover:bg-neutral-800 rounded-full transition">
+            <ArrowLeft size={20} className="text-neutral-400" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <ImageIcon className="text-primary" />
+              Image Studio
+            </h1>
+            <p className="text-neutral-400 text-sm mt-1">
+              Generate posters, banners, and social assets.
+            </p>
+          </div>
         </div>
-    );
+        <Link
+          href="/dashboard/generators/image/new"
+          className="bg-primary hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm transition"
+        >
+          <Plus size={16} />
+          New Image
+        </Link>
+      </div>
+
+      {/* Projects Grid */}
+      {projects.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-32 text-center">
+          <div className="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-6 border border-neutral-800">
+            <ImageIcon size={40} className="text-neutral-600" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">No images yet</h2>
+          <p className="text-neutral-500 max-w-sm mb-6">
+            Create stunning event posters, banners, and social media graphics with AI. Choose from multiple styles and categories.
+          </p>
+          <Link
+            href="/dashboard/generators/image/new"
+            className="bg-primary hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2 transition"
+          >
+            <Sparkles size={16} />
+            Create Your First Image
+          </Link>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {projects.map((project) => (
+            <div key={project.id} className="bg-neutral-900/50 border border-neutral-800 hover:border-primary/50 rounded-xl overflow-hidden flex flex-col transition group">
+              {/* Thumbnail */}
+              <div className="h-48 overflow-hidden relative bg-gradient-to-br from-orange-900/20 to-pink-900/20">
+                {project.imageUrl ? (
+                  <img
+                    src={project.imageUrl}
+                    alt={project.prompt}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <ImageIcon size={48} className="text-neutral-700" />
+                  </div>
+                )}
+                <div className="absolute top-3 left-3">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/50 text-white backdrop-blur border border-white/10">
+                    {project.category || "Custom"}
+                  </span>
+                </div>
+                {project.style && (
+                  <div className="absolute top-3 right-3">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-black/50 text-white backdrop-blur border border-white/10 flex items-center gap-1">
+                      <Palette size={10} /> {project.style}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="p-4 flex flex-col flex-1">
+                <p className="text-white text-sm line-clamp-2 mb-2 leading-relaxed">
+                  {project.prompt || "Generated Image"}
+                </p>
+                <div className="flex items-center gap-2 text-xs text-neutral-500 mb-3">
+                  <span className="flex items-center gap-1"><Clock size={12} /> {project.date}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 pt-3 border-t border-neutral-800 mt-auto">
+                  {project.imageUrl && (
+                    <a
+                      href={project.imageUrl}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-primary/10 hover:bg-primary/20 text-primary text-xs py-2 rounded-lg text-center transition flex items-center justify-center gap-1"
+                    >
+                      <Download size={12} /> Download
+                    </a>
+                  )}
+                  <button
+                    onClick={() => deleteProject(project.id)}
+                    className="p-2 hover:bg-red-500/10 text-neutral-500 hover:text-red-400 rounded-lg transition"
+                    title="Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

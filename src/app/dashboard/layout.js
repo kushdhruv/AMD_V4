@@ -6,13 +6,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { 
   Home, Zap, Globe, Smartphone, Layers, ShoppingBag, 
-  Settings, LogOut, Menu, X, PlusCircle 
+  Settings, LogOut, Menu, X, PlusCircle, Newspaper 
 } from 'lucide-react';
 import { CreditsBadge } from "@/components/layout/credits-badge";
 
-const SidebarItem = ({ icon: Icon, label, href, active }) => (
+const SidebarItem = ({ icon: Icon, label, href, active, onClick }) => (
   <Link 
     href={href} 
+    onClick={onClick}
     className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
       active 
         ? 'bg-primary/10 text-primary border border-primary/20 shadow-[0_0_15px_rgba(255,106,0,0.1)]' 
@@ -25,7 +26,7 @@ const SidebarItem = ({ icon: Icon, label, href, active }) => (
 );
 
 export default function DashboardLayout({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -44,12 +45,18 @@ export default function DashboardLayout({ children }) {
     router.push('/');
   };
 
+  const closeMobile = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <div className="flex h-screen text-white font-sans overflow-hidden">
       
       {/* Mobile Overlay */}
-      {!sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(true)} />
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -59,31 +66,37 @@ export default function DashboardLayout({ children }) {
       `}>
         {/* Logo */}
         {/* Logo */}
-        <Link href="/" className="h-16 flex items-center px-6 border-b border-white/5 hover:bg-white/5 transition-colors">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shrink-0">
-             <Zap size={18} fill="currentColor" />
-          </div>
-          <span className={`ml-3 font-bold text-lg tracking-tight transition-opacity ${sidebarOpen ? 'opacity-100' : 'opacity-0 md:hidden lg:block'}`}>
-            AI Event OS
-          </span>
-        </Link>
+        <div className="h-16 flex items-center justify-between px-6 border-b border-white/5 hover:bg-white/5 transition-colors">
+          <Link href="/" className="flex items-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shrink-0">
+               <Zap size={18} fill="currentColor" />
+            </div>
+            <span className={`ml-3 font-bold text-lg tracking-tight transition-opacity ${sidebarOpen ? 'opacity-100' : 'opacity-0 md:hidden lg:block'}`}>
+              AI Event OS
+            </span>
+          </Link>
+          <button onClick={() => setSidebarOpen(false)} className="md:hidden p-1 text-text-secondary hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
 
         {/* Nav Items */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-20 md:pb-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
             <div className={`text-xs font-bold text-text-secondary uppercase mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Main</div>
-            <SidebarItem icon={Home} label="Home" href="/dashboard" active={pathname === '/dashboard'} />
+            <SidebarItem icon={Home} label="Home" href="/dashboard" active={pathname === '/dashboard'} onClick={closeMobile} />
             
             <div className={`text-xs font-bold text-text-secondary uppercase mt-6 mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Builders</div>
-            <SidebarItem icon={Globe} label="EventForge (Web)" href="/dashboard/website-builder" active={pathname.startsWith('/dashboard/website-builder')} />
-            <SidebarItem icon={Smartphone} label="AppForge (App)" href="/dashboard/app-builder" active={pathname.startsWith('/dashboard/app-builder')} />
-            <SidebarItem icon={PlusCircle} label="Generators" href="/dashboard/generators" active={pathname.startsWith('/dashboard/generators')} />
+            <SidebarItem icon={Globe} label="WebsiteBuilder" href="/dashboard/website-builder" active={pathname.startsWith('/dashboard/website-builder')} onClick={closeMobile} />
+            <SidebarItem icon={Smartphone} label="AppBuilder" href="/dashboard/app-builder" active={pathname.startsWith('/dashboard/app-builder')} onClick={closeMobile} />
+            <SidebarItem icon={PlusCircle} label="Generators" href="/dashboard/generators" active={pathname.startsWith('/dashboard/generators')} onClick={closeMobile} />
             
             <div className={`text-xs font-bold text-text-secondary uppercase mt-6 mb-2 px-2 ${!sidebarOpen && 'md:hidden lg:block'}`}>Explore</div>
-            <SidebarItem icon={ShoppingBag} label="Marketplace" href="/dashboard/marketplace" active={pathname.startsWith('/dashboard/marketplace')} />
+            <SidebarItem icon={ShoppingBag} label="Marketplace" href="/dashboard/marketplace" active={pathname.startsWith('/dashboard/marketplace')} onClick={closeMobile} />
+            <SidebarItem icon={Newspaper} label="What's New" href="/dashboard/whats-new" active={pathname.startsWith('/dashboard/whats-new')} onClick={closeMobile} />
             
             <div className="h-4" /> {/* Spacer */}
-            <SidebarItem icon={Zap} label="Pricing" href="/dashboard/pricing" active={pathname.startsWith('/dashboard/pricing')} />
-            <SidebarItem icon={Settings} label="Settings" href="/dashboard/settings" active={pathname.startsWith('/dashboard/settings')} />
+            <SidebarItem icon={Zap} label="Pricing" href="/dashboard/pricing" active={pathname.startsWith('/dashboard/pricing')} onClick={closeMobile} />
+            <SidebarItem icon={Settings} label="Settings" href="/dashboard/settings" active={pathname.startsWith('/dashboard/settings')} onClick={closeMobile} />
         </div>
 
         {/* User Footer */}

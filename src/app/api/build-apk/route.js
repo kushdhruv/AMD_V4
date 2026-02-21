@@ -28,7 +28,7 @@ jobs:
 
       - name: Create Flutter Project
         run: |
-          flutter create --org com.appforge --project-name appforge_app .
+          flutter create --org com.AppBuilder --project-name AppBuilder_app .
           rm -rf lib/main.dart test/
 
       - name: Write Project Files
@@ -71,7 +71,7 @@ jobs:
 export async function POST(request) {
   try {
     const config = await request.json();
-    const repoName = `eventforge-app-${config.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now().toString().slice(-4)}`;
+    const repoName = `WebsiteBuilder-app-${config.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now().toString().slice(-4)}`;
     
     // Initialize Octokit
     if (!process.env.GITHUB_TOKEN) {
